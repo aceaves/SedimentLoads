@@ -182,55 +182,55 @@ print(Flowplot)
 
 ######### NOT SURE ABOUT CODE AFTER HERE #######################################
 
-SSC$SampleTaken <- lubridate::round_date(SSC$SampleTaken, "15 minutes") 
-SSC$SampleTaken <-as.character(SSC$SampleTaken) 
-Flow$SampleTaken <-as.character(Flow$SampleTaken) 
+#SSC$SampleTaken <- lubridate::round_date(SSC$SampleTaken, "15 minutes") 
+#SSC$SampleTaken <-as.character(SSC$SampleTaken) 
+#Flow$SampleTaken <-as.character(Flow$SampleTaken) 
 
 
-merged <- merge(Flow, SSC, by = "SampleTaken" )
-merged <- merged[,c(1,2,3,5)]
+#merged <- merge(Flow, SSC, by = "SampleTaken" )
+#merged <- merged[,c(1,2,3,5)]
 
-colnames(merged) <- c('DateTime', 'Flow', 'Site', 'Conc')
+#colnames(merged) <- c('DateTime', 'Flow', 'Site', 'Conc')
 
-merged1 <- select(merged, DateTime, Flow, Conc)
-merged1$DateTime <- as.POSIXct(merged1$DateTime, format = "%Y-%m-%d %H:%M:%S")
-merged1$Date <- format(as.POSIXct(merged1$DateTime,format='%m/%d/%Y %H:%M:%S'),format='%Y%m%d')
-merged1$Date2 <- format(as.POSIXct(merged1$DateTime,format='%m/%d/%Y %H:%M:%S'),format='%d/%m/%Y')
-
-
-merged1$Time <- format(merged1$DateTime, format = "%H%M%S")
-merged1$Time1 <- format(merged1$DateTime, format = "%I:%M:%S %p")
-#merged1$Time1 <- hms::as_hms(lubridate::parse_date_time(merged1$Time2,"1IMS p"))
+#merged1 <- select(merged, DateTime, Flow, Conc)
+#merged1$DateTime <- as.POSIXct(merged1$DateTime, format = "%Y-%m-%d %H:%M:%S")
+#merged1$Date <- format(as.POSIXct(merged1$DateTime,format='%m/%d/%Y %H:%M:%S'),format='%Y%m%d')
+#merged1$Date2 <- format(as.POSIXct(merged1$DateTime,format='%m/%d/%Y %H:%M:%S'),format='%d/%m/%Y')
 
 
-merged1$Flow <- as.numeric(merged1$Flow)
-merged1$Flow<- formatC(merged1$Flow, digits = 0, format = "f")
-merged1$Flow <- as.character(merged1$Flow)
-merged1$Conc <- as.numeric(merged1$Conc)
-merged1$new <- ""
-library(dplyr)
+#merged1$Time <- format(merged1$DateTime, format = "%H%M%S")
+#merged1$Time1 <- format(merged1$DateTime, format = "%I:%M:%S %p")
+##merged1$Time1 <- hms::as_hms(lubridate::parse_date_time(merged1$Time2,"1IMS p"))
 
 
-merged1 <- merged1 %>% filter(!Conc > 6000)
-
-Final <- data.frame(merged1$Flow, merged1$Date,merged1$Time)
-
-
-nrow(Final)
-
-
-#write.table(Final, file = "test1.txt",row.names=FALSE, quote = FALSE, sep="\t")
-#write_delim(Tim, file = "test1.txt", append = FALSE)
-print(Final)
-print(Final[30:230,],right=T, row.names = FALSE)
-print(Final[201:296,],right=T, row.names = FALSE)
+#merged1$Flow <- as.numeric(merged1$Flow)
+#merged1$Flow<- formatC(merged1$Flow, digits = 0, format = "f")
+#merged1$Flow <- as.character(merged1$Flow)
+#merged1$Conc <- as.numeric(merged1$Conc)
+#merged1$new <- ""
+#library(dplyr)
 
 
-#gt_tbl <- gt(merged1)
-setwd('C:/Users/tim.norris/Desktop')
-xlsx::write.xlsx(merged1, 'merged2.xlsx')
+#merged1 <- merged1 %>% filter(!Conc > 6000)
 
-merged1$Flow <- as.numeric(merged1$Flow )
+#Final <- data.frame(merged1$Flow, merged1$Date,merged1$Time)
 
-Final$merged1.Flow <- as.numeric(Final$merged1.Flow)
-summary(merged1$Conc)
+
+#nrow(Final)
+
+
+##write.table(Final, file = "test1.txt",row.names=FALSE, quote = FALSE, sep="\t")
+##write_delim(Tim, file = "test1.txt", append = FALSE)
+#print(Final)
+#print(Final[30:230,],right=T, row.names = FALSE)
+#print(Final[201:296,],right=T, row.names = FALSE)
+
+
+##gt_tbl <- gt(merged1)
+#setwd('C:/Users/tim.norris/Desktop')
+#xlsx::write.xlsx(merged1, 'merged2.xlsx')
+
+#merged1$Flow <- as.numeric(merged1$Flow )
+
+#Final$merged1.Flow <- as.numeric(Final$merged1.Flow)
+#summary(merged1$Conc)
