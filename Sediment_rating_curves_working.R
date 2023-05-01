@@ -28,8 +28,8 @@ date2 <- "01-Mar-2023 00:00:00"
 measurement <- c(	'Suspended Solids [Suspended Solids]','Suspended Sediment Concentration', "Flow")  
 
 #Loop 1 through sites--------------------------------------------------
-name <- data.frame(i)
-name$Sites <- as.character(name$i)
+name <- data.frame(sitelist)
+name$Sites <- as.character(name$sitelist)
   
 site_no <- length(sitelist)
 site_id <- sitelist
@@ -111,12 +111,12 @@ setwd('M:/E_Science/Projects/306 HCE Project/R_analysis/Rating curves/Outputs/te
 #Loop 2 through sites-----------------------------------------------------------
 for (i in sitelist) { 
 
+  test1 <- filter(test, SiteName == i)
+  
   ###############################
   #Export Flowplot to a PNG file
   filename <- paste("FLOW_", i, ".png", sep="")
   png(filename, width=1200, height=800)
-  
-  test1 <- filter(test, SiteName == i)
     
   Flowplot <- ggplot(data = test1) + 
     geom_path(aes(x = SampleTaken, y = Flow), colour = 'black', size = 0.4) + theme_bw() + 
@@ -133,8 +133,8 @@ for (i in sitelist) {
   filename <- paste("SSC_", i, ".png", sep="")
   png(filename, width=1200, height=800)
   
-  SSC <- ggplot() + 
-    geom_path(data = test, aes(x = SampleTaken, y = Flow), colour = "black", size = 0.4)+  
+  SSC <- ggplot(data = test1) + 
+    geom_path(data = test1, aes(x = SampleTaken, y = Flow), colour = "black", size = 0.4)+  
     geom_point(data = merged, aes(x = SampleTaken, y = Flow, color = Measurement2), size = 1.5)+
     scale_color_manual(values = c("#009E73","#0072B2"), name = "Sample Type")+
     theme_bw() +
@@ -153,9 +153,9 @@ for (i in sitelist) {
   filename <- paste("CUMSSC_", i, ".png", sep="")
   png(filename, width=1200, height=800)
   
-  CUMSSC <- ggplot() + 
-    geom_line(data = test, aes(x = SampleTaken, y = predConc)) + theme_bw() + 
-    geom_line(data = test, aes(x = SampleTaken, y = summary*500), colour = 'red')+
+  CUMSSC <- ggplot(data = test1) + 
+    geom_line(data = test1, aes(x = SampleTaken, y = predConc)) + theme_bw() + 
+    geom_line(data = test1, aes(x = SampleTaken, y = summary*500), colour = 'red')+
     scale_y_continuous(name = "SSC (mg/l)",expand = c(0,0,0.2,2), sec.axis = sec_axis(~./500, name = "Cumulative sediment (T)")) 
   
   print(CUMSSC)
@@ -166,10 +166,10 @@ for (i in sitelist) {
   filename <- paste("CUMSSC2_", i, ".png", sep="")
   png(filename, width=1200, height=800)
   
-  CUMSSC2 <- ggplot() + 
-    geom_line(data = test, aes(x = SampleTaken, y = predConc)) + theme_bw() + 
+  CUMSSC2 <- ggplot(data = test1) + 
+    geom_line(data = test1, aes(x = SampleTaken, y = predConc)) + theme_bw() + 
     geom_point(data = merged1, aes(x = SampleTaken, y = Conc, color = Measurement2), size = 1.5)+
-    geom_line(data = test, aes(x = SampleTaken, y = summary*500), colour = 'red')+
+    geom_line(data = test1, aes(x = SampleTaken, y = summary*500), colour = 'red')+
     scale_y_continuous(name = "SSC (mg/l)",expand = c(0,0,0.2,2), sec.axis = sec_axis(~./500, name = "Cumulative sediment (T)")) 
   
   print(CUMSSC2)
