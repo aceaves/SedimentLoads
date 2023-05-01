@@ -18,17 +18,11 @@ library(gt)
 
 #set file path to ISCO Hilltop file 
 dfile <- HilltopData("N:/HilltopData/WQ_E_Working/ISCO_Processing.dsn")
-#dfile <- HilltopData("N:/HilltopData/EMAR/EMARFull.dsn")
 
-# Get measurement list for respective sites 
-#measurementlist <- Hilltop::MeasurementList(dfile,"Tukituki River at Red Bridge")
+#Get site list
 sitelist <- SiteList(dfile, "")
 
-#ISCO sites 
-#ISCOSites <-  c( "Tutaekuri River at Puketapu HBRC Site", "Tukituki River at Red Bridge", "Karamu Stream at Floodgates", "Esk River at Waipunga Bridge", "Mangaone River at Rissington", "Maraetotara River at Waimarama Road")
-Sites <-     "Tukituki River at Red Bridge"   
 
-#Sites <-  c("Tukituki River at Red Bridge")
 
 # Define UI for application that draws a histogram
 ui <- fluidPage(
