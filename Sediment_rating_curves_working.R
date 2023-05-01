@@ -123,11 +123,18 @@ write.csv(merged, file = "merged.csv", row.names = FALSE)
 
 ############################################################################################################
 #ggplot exports:
+setwd('M:/E_Science/Projects/306 HCE Project/R_analysis/Rating curves/Outputs/test')
 
-setwd('M:/E_Science/Projects/340 Land Monitoring/Land Monitoring Work Programmes/340-204 Erosion Monitoring/ISCO sampling/R_analysis/Rating curves')
+sitelist <- SiteList(dfile, "")
+
+for (i in sitelist) {
 
 ###############################
-#Export Flowplot for Tukituki:
+#Export Flowplot:
+  # Export the plot to a PNG file
+filename <- paste("FLOW_", i, ".png", sep="")
+png(filename, width=1200, height=800)
+  
 Flowplot <- ggplot(data = test) + 
   geom_path(aes(x = SampleTaken, y = Flow), colour = 'black', size = 0.4) + theme_bw() + 
   scale_x_datetime(date_labels = "%b %Y", date_breaks = "6 months") + 
@@ -137,10 +144,13 @@ Flowplot <- ggplot(data = test) +
   
 print(Flowplot)
 dev.off()
-ggsave( "./Outputs/test/FlowTukituki.tiff",Flowplot, width = 15, height = 5, dpi = 300)
 
 ################################
-#Export Sample SCC:
+#Export Sample SSC:
+# Export the plot to a PNG file
+filename <- paste("SSC_", i, ".png", sep="")
+png(filename, width=1200, height=800)
+
 SSC <- ggplot() + 
   geom_path(data = test, aes(x = SampleTaken, y = Flow), colour = "black", size = 0.4)+  
   geom_point(data = merged, aes(x = SampleTaken, y = Flow, color = Measurement2), size = 1.5)+
@@ -153,31 +163,44 @@ SSC <- ggplot() +
   xlab("Date")+ 
   ylab("Flow (l/s)")
 
-ggsave("./Outputs/test/SampleSSC.tiff",SSC, width = 15, height = 5, dpi = 300)
+print(SSC)
+dev.off()
 
 ################################
 #Export Cumulative Sediment1:
-ggplot() + 
+# Export the plot to a PNG file
+filename <- paste("CUMSSC_", i, ".png", sep="")
+png(filename, width=1200, height=800)
+
+CUMSSC <- ggplot() + 
   geom_line(data = test, aes(x = SampleTaken, y = predConc)) + theme_bw() + 
   geom_line(data = test, aes(x = SampleTaken, y = summary*500), colour = 'red')+
   #scale_y_continuous(expand = c(0,0), breaks = c(0,5000)) + 
   scale_y_continuous(name = "SSC (mg/l)",expand = c(0,0,0.2,2), sec.axis = sec_axis(~./500, name = "Cumulative sediment (T)")) 
 
-ggsave("./Outputs/test/CumulativeSediment1.tiff", width = 15, height = 5, dpi = 300)
+print(CUMSSC)
+dev.off()
 
 ################################
 #Export Cumulative Sediment2:
-ggplot() + 
+# Export the plot to a PNG file
+filename <- paste("CUMSSC2_", i, ".png", sep="")
+png(filename, width=1200, height=800)
+
+CUMSSC2 <- ggplot() + 
   geom_line(data = test, aes(x = SampleTaken, y = predConc)) + theme_bw() + 
   geom_point(data = merged1, aes(x = SampleTaken, y = Conc, color = Measurement2), size = 1.5)+
   geom_line(data = test, aes(x = SampleTaken, y = summary*500), colour = 'red')+
     #scale_y_continuous(expand = c(0,0), breaks = c(0,5000)) + 
   scale_y_continuous(name = "SSC (mg/l)",expand = c(0,0,0.2,2), sec.axis = sec_axis(~./500, name = "Cumulative sediment (T)")) 
 
-ggsave("./Outputs/test/CumulativeSediment2.tiff", width = 15, height = 5, dpi = 300)
+print(CUMSSC2)
+dev.off()
 
-summary(test$summary)
-print(Flowplot)
+#summary(test$summary)
+#print(Flowplot)
+
+}
 
 
 ######### NOT SURE ABOUT CODE AFTER HERE #######################################
