@@ -22,8 +22,6 @@ dfile <- HilltopData("N:/HilltopData/WQ_E_Working/ISCO_Processing.dsn")
 #Get site list
 sitelist <- SiteList(dfile, "")
 
-
-
 # Define UI for application that draws a histogram
 ui <- fluidPage(
   navbarPage("Shiny App", tabPanel("Main Tab"),
