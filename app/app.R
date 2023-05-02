@@ -16,11 +16,27 @@ library(hms)
 library(lubridate) 
 library(gt)
 
+################################################################################
+# Data load
+
 #set file path to ISCO Hilltop file 
 dfile <- HilltopData("N:/HilltopData/WQ_E_Working/ISCO_Processing.dsn")
+#dfile <- HilltopData("N:/HilltopData/EMAR/EMARFull.dsn")
 
-#Get site list
+# Get measurement list for respective sites 
 sitelist <- SiteList(dfile, "")
+#measurementlist <- Hilltop::MeasurementList(dfile, sitelist)
+
+Hilltop::SiteList(dfile)
+
+# Date range. 
+date1 <- "01-Mar-2021 00:00:00"
+date2 <- "01-Mar-2023 00:00:00"
+
+#Measurements/data that we want to pull from the Hilltop file 
+measurement <- c(	'Suspended Solids [Suspended Solids]','Suspended Sediment Concentration', "Flow") 
+
+################################################################################
 
 # Define UI for application that draws a histogram
 ui <- fluidPage(
@@ -37,26 +53,35 @@ ui <- fluidPage(
                   c(sitelist))
     ),
     
-    # Show a plot of the generated distribution
-    mainPanel()
+  # Show a plot of the generated distribution
+  mainPanel()
   )
 )
 
-# Define server logic required to draw a histogram
+################################################################################
+
+# Define server logic to plot various variables against mpg ----
 server <- function(input, output) {
-
-    output$distPlot <- renderPlot({
-        # generate bins based on input$bins from ui.R
-        x    <- faithful[, 2]
-        bins <- seq(min(x), max(x), length.out = input$bins + 1)
-
-        # draw the histogram with the specified number of bins
-        hist(x, breaks = bins, col = 'darkgray', border = 'white',
-             xlab = 'Waiting time to next eruption (in mins)',
-             main = 'Histogram of waiting times')
-    })
+  data <- reactive({
+    # Read data from file
+    df <- read.csv("data.csv")
+    
+    # Filter data based on user input
+    df <- subset(df, variable == input$variable)
+    
+    # Return filtered data
+    return(df)
+  })
+  
+  # Generate output
+  output$plot <- renderPlot({
+    # Generate plot based on filtered data
+    ggplot(data(), aes(x = x, y = y)) + geom_point()
+  })
 }
+
+################################################################################
 
 
 # Run the application 
-shinyApp(ui = ui, server = server)
+shinyApp(ui, server)

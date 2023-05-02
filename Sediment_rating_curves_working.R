@@ -106,6 +106,9 @@ write.csv(merged, file = "merged.csv", row.names = FALSE)
   
 ############################################################################################################
 #ggplot exports:
+##########################
+
+#Set working directory for outputs and customise as needed (date etc)
 setwd('M:/E_Science/Projects/306 HCE Project/R_analysis/Rating curves/Outputs/test')
   
 #Loop 2 through sites-----------------------------------------------------------
