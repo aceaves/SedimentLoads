@@ -1,5 +1,8 @@
-# This script has been written to predict sediment loads for respective rivers in Hawke's Bay. Rating curves have been generated using Sedrate and the model output used to predict sediment loads
-# Edited Ashton Eaves 20230314
+################################################################################
+# This script has been written to predict sediment loads for respective rivers in Hawke's Bay. 
+# Rating curves have been generated using Sedrate and the model output used to predict sediment loads.
+# Edited by Ashton Eaves and tracked using Github: https://github.com/aceaves/SedimentRatingCurves
+
 
 library(Hilltop)
 library(dplyr)
@@ -10,14 +13,13 @@ library(hms)
 library(lubridate) 
 library(gt)
 
-#set file path to ISCO Hilltop file 
+#Set file path to ISCO Hilltop file 
 dfile <- HilltopData("N:/HilltopData/WQ_E_Working/ISCO_Processing.dsn")
 #dfile <- HilltopData("N:/HilltopData/EMAR/EMARFull.dsn")
 
 # Get measurement list for respective sites 
 sitelist <- SiteList(dfile, "")
 #measurementlist <- Hilltop::MeasurementList(dfile, sitelist)
-
 Hilltop::SiteList(dfile)
 
 # Date range. 
@@ -38,8 +40,9 @@ method <- ""
 interval <- ""
   
 for(j in 1:site_no){
-    Multiple_sites <- GetData(dfile, site_id[j] ,measurement, date1, date2) # You will struggle to use this format in most packages 
-      #do this to make it more useful
+    Multiple_sites <- GetData(dfile, site_id[j] ,measurement, date1, date2) 
+    # You will struggle to use this format in most packages 
+    # do this to make it more useful
   Multiple_sites_id <- do.call(rbind, lapply(Multiple_sites, function(x) cbind(zoo::fortify.zoo(x),
                                                                                 SiteName = attr(x, 'SiteName'), Measurement = attr(x, 'Measurement')))) %>% 
     dplyr::rename(zoodata='x') %>% 
@@ -52,13 +55,12 @@ for(j in 1:site_no){
   }
 }
 #-------------------------------------------------------------------------------
-#_______________________________________________________________________________
 # Rename column names for the new dataframe called 'melt' 
 colnames(melt) <- c("SampleTaken", "Flow", "SiteName","Measurement")
   
-# Data pulled from Hilltop has different time frequencies. The aggregate function is used to aggregate data to 15 minute intervals
+# Data pulled from Hilltop has different time frequencies. 
+# The aggregate function is used to aggregate data to 15 minute intervals.
 melt$SampleTaken <-  lubridate::floor_date(melt$SampleTaken, "15 minutes")
-  
   
 Flow <- filter(melt, Measurement == "Flow")
 Flow$Flow <- as.numeric(Flow$Flow)
@@ -85,13 +87,17 @@ merged1 <- filter(merged, SampleTaken > "2018-06-30" & Measurement2 == 'SSC')
   
 ###############################################################################
 # Convert time/date to as.POSIXct 
-  
 Flow$SampleTaken <- as.POSIXct(Flow$SampleTaken , format = "%Y-%m-%d %H:%M:%S")
-Flow$Flow <- as.numeric(Flow$Flow) # Convert fklow column to numeric 
-Flow$Flowlog <- log(Flow$Flow) # Take natural log of flow data 
-Flow$concLog <- (Flow$Flowlog*1.089-7.004) # Predict ln (concentration) based on equation calulated in the Sedrate software 
-Flow$predConc <- exp(Flow$concLog)*1.3 # Apply bias correction factor (calculated in Sedrate)
-Flow$load <- (Flow$predConc*Flow$Flow*900)/1000000000 # Convert concentration to load and mg to T
+# Convert fklow column to numeric
+Flow$Flow <- as.numeric(Flow$Flow) 
+# Take natural log of flow data
+Flow$Flowlog <- log(Flow$Flow)  
+# Predict ln (concentration) based on equation calculated in the Sedrate software
+Flow$concLog <- (Flow$Flowlog*1.089-7.004) 
+# Apply bias correction factor (calculated in Sedrate)
+Flow$predConc <- exp(Flow$concLog)*1.3 
+# Convert concentration to load and mg to T
+Flow$load <- (Flow$predConc*Flow$Flow*900)/1000000000 
   
 # Remove any N/As from the datset 
 test <- Flow %>%
@@ -101,17 +107,19 @@ test <- within(test, acc_sum <- Reduce("+", load, accumulate = TRUE))
 test$summary <- test$acc_sum/1000000
 
 colnames(test)
+
+#Set working directory for outputs and customise as needed (date etc)
+#setwd('M:/E_Science/Projects/306 HCE Project/R_analysis/Rating curves/Outputs/test/Outputs/test')
+setwd('./Outputs')
   
+#Table outputs
 write.csv(merged, file = "merged.csv", row.names = FALSE)
 write.csv(test, file = "test.csv", row.names = FALSE)
 
-
 ################################################################################
 #ggplot exports:
-##########################
 
-#Set working directory for outputs and customise as needed (date etc)
-setwd('M:/E_Science/Projects/306 HCE Project/R_analysis/Rating curves/Outputs/test')
+
   
 #Loop 2 through sites-----------------------------------------------------------
 for (i in sitelist) { 
@@ -186,9 +194,11 @@ for (i in sitelist) {
   dev.off()
 
   summary(test$summary)
+  print(summary)
   
 }
 #Loop 2 completed---------------------------------------------------------------
+
 
 ######### NOT SURE ABOUT CODE AFTER HERE #######################################
 
