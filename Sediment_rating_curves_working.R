@@ -103,6 +103,7 @@ test$summary <- test$acc_sum/1000000
 colnames(test)
   
 write.csv(merged, file = "merged.csv", row.names = FALSE)
+write.csv(test, file = "test.csv", row.names = FALSE)
 
 
 ################################################################################
