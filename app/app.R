@@ -50,7 +50,9 @@ ui <- fluidPage(
   sidebarLayout(
     sidebarPanel(
       selectInput("variable", "Variable:", 
-                  c(sitelist))
+                  c(sitelist)),
+      selectInput("variable", "Variable:", 
+                  c(sitelist))      
     ),
     
   # Show a plot of the generated distribution
