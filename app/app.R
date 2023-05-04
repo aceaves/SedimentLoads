@@ -6,147 +6,102 @@
 #    http://shiny.rstudio.com/
 #
 
+#
+# This is a Shiny web application. You can run the application by clicking
+# the 'Run App' button above.
+#
+# Find out more about building applications with Shiny here:
+#
+#    http://shiny.rstudio.com/
+#
+
 library(shiny)
-library(shinyWidgets)
-library(Hilltop)
-library(dplyr)
-library(scales)
 library(ggplot2)
-library(tidyverse)
-library(hms) 
-library(lubridate) 
-library(gt)
-
-################################################################################
-# Data load
-
-#set file path to ISCO Hilltop file
-dfile <- HilltopData("N:/HilltopData/WQ_E_Working/ISCO_Processing.dsn")
-#dfile <- HilltopData("N:/HilltopData/EMAR/EMARFull.dsn")
-
-# Get measurement list for respective sites
-site <- SiteList(dfile, "")
-#measurementlist <- Hilltop::MeasurementList(dfile, sitelist)
-
-Hilltop::SiteList(dfile)
-
-# Date range.
-date1 <- "01-Mar-2021 00:00:00"
-date2 <- "01-Mar-2023 00:00:00"
-
-#Measurements/data that we want to pull from the Hilltop file
-measurement <- c(	'Suspended Solids [Suspended Solids]','Suspended Sediment Concentration', "Flow")
-
-#Output from Sediment_rating_curves_working.R
-rating_output <- test
 
 ################################################################################
 
-# Define UI
+# Define UI for miles per gallon app ----
 ui <- fluidPage(
-  navbarPage("Shiny App", tabPanel("Main Tab"),
-             tabPanel("Tab2", "Work In Progress")),
   
-  # Application title
-  titlePanel("Sediment Rating Curves & Summary"),
+  # App title ----
+  titlePanel("Sediment Rating Curves, Flow & Load Summary"),
   
-  # Add slider input for time range
-  sliderInput("time_range", "Select time range:",
-              min = as.POSIXct("2022-01-01"), 
-              max = as.POSIXct("2022-12-31"), 
-              value = c(as.POSIXct("2022-01-01"), as.POSIXct("2022-12-31")),
-              timeFormat = "%Y-%m-%d",
-              timezone = "UTC"
-  ),
-  
-  # Add select input for site
-  uiOutput("site_input"),
-  
-  # Add select input for measurements
-  uiOutput("measurement_input"),
-  
-  selectInput("test", "test:", 
-              c("Flow", "Flowlog", "concLog", "predConc", "load", "acc_sum", "summary")  
-  ),
-  
-  # Display the selected time range and data
-  verbatimTextOutput("result")
+  # Sidebar layout with input and output definitions ----
+  sidebarLayout(
+    
+    # Sidebar panel for inputs ----
+    sidebarPanel(
+      # Input: Selector for variable to plot against ----
+      selectInput("SiteName", "Site Name:", 
+                  c(sitelist)),
+      selectInput("measure", "Measurement:",
+                  c("Flow (l/s)" = "Flow",
+                    "Flow Log" = "Flowlog",
+                    "Concentration Log" = "concLog",
+                    "Predicted Concentration SSC (mg/l)" = "predConc",
+                    "Load (T)" = "load",
+                    "Accumulated Load (T)" = "AccumLoad",
+                    "Summary SSC (mg/l)" = "summary")),
+      # selectInput("measure", "Measurement:",
+      #             c("Flow" = "Flow (l/s)",
+      #               "Flowlog" = "Flow Log",
+      #               "concLog" = "Concentration Log",
+      #               "predConc" = "Predicted Concentration SSC (mg/l)",
+      #               "load" = "load (T)",
+      #               "AccumLoad" = "Accumulated Load (T)",
+      #               "summary" = "Summary SSC (mg/l)")),
+      dateRangeInput("dater","Date range:",start=df$SampleTaken[1],end=df$SampleTaken[nrow(df)]),
+      
+      # Input: Checkbox for whether outliers should be included ----
+      #      checkboxInput("outliers", "Show outliers", TRUE)
+      
+    ),
+    
+    # Main panel for displaying outputs ----
+    mainPanel(
+      
+      # Output: Formatted text for caption ----
+      h3(textOutput("caption")),
+      
+      # Output: Plot of the requested variable against mpg ----
+      plotOutput("Plot")
+      
+    )
+  )
 )
 
+# Data pre-processing ----
+# Tweak the "am" variable to have nicer factor labels -- since this
+# doesn't rely on any user inputs, we can do this once at startup
+# and then use the value throughout the lifetime of the app
 
-#-------------------------------------------------------------------------------
-# Define server
+df <- read.csv("M:/E_Science/Projects/306 HCE Project/R_analysis/Rating curves/git/Outputs/measure.csv")
+df$SampleTaken<-as.POSIXct(df$SampleTaken, format="%Y-%m-%d %H:%M:%S")
+
+head# Define server logic to plot various variables against mpg ----
 server <- function(input, output) {
   
-  # Create reactive expression for selected time range
-  time_range_selected <- reactive({
-    range <- input$time_range
-    return(paste(format(range[1], "%Y-%m-%d"), " to ", format(range[2], "%Y-%m-%d")))
+  # Return the formula text for printing as a caption ----
+  output$caption <- renderText({
+    paste("Measurement ~", input$measure," | Site ~", input$SiteName)
+    #   formulaText()
   })
   
-  # Create reactive expression for selected data
-  data_selected <- reactive({
-    # Read data from file
-    df <- rating_output
+  # Generate a plot of the requested variable ----
+  output$Plot <- renderPlot({
     # Filter data based on user input
-    df <- subset(df, site_name == input$site)
-    df <- subset(df, Measurement == input$measurement)
-    
-    # Return filtered data
-    return(df)
-  })
-  
-  # Render the selected time range and data
-  output$result <- renderPrint({
-    time_range <- time_range_selected()
-    df <- data_selected()
-    paste("Selected time range:", time_range, "\nSelected data:", paste(df, collapse = ", "))
-  })
-  
-  # Create reactive expression for available sites
-  available_sites <- reactive({
-    unique(site$name)
-  })
-  
-  # Render the available sites in the site selectInput
-  observe({
-    choices <- available_sites()
-    updateSelectInput(session, "site", choices = choices)
+    df1 <- subset(df, SiteName == input$SiteName)
+    df2 <- df1[df1$SampleTaken>=input$dater[1] & df1$SampleTaken<=input$dater[2],]
+    # Generate plot based on filtered data
+    ggplot(data = df2) +
+      geom_path(aes(x = SampleTaken, y = df2[[input$measure]]), colour = 'black', size = 0.4) + theme_bw() +
+      scale_x_datetime(date_labels = "%b %Y", date_breaks = "6 months") +
+      scale_y_continuous(labels = comma_format())+
+      theme(axis.text = element_text(colour = 'black', size = 12), axis.title  = element_text(colour = 'black', size = 12)) +
+      xlab('Date') + ylab(paste(input$measure))
   })
   
 }
 
-# Run the app with the measurement argument passed to the server function
-
 shinyApp(ui, server)
-
 ################################################################################
-
-# ################################################################################
-# 
-# # Define server logic to plot various variables against mpg ----
-# server <- function(input, output) {
-#   data <- reactive({
-#     # Read data from file
-#     df <- test
-#     
-#     # Filter data based on user input
-#     df <- subset(df, variable == input$variable)
-#     
-#     # Return filtered data
-#     return(df)
-#   })
-#   
-#   # Generate output
-#   output$plot <- renderPlot({
-#     # Generate plot based on filtered data
-#     Flowplot <- ggplot(data = test) +
-#       geom_path(aes(x = SampleTaken, y = Flow), colour = 'black', size = 0.4) + theme_bw() +
-#       scale_x_datetime(date_labels = "%b %Y", date_breaks = "6 months") +
-#       scale_y_continuous(labels = comma_format())+
-#       theme(axis.text = element_text(colour = 'black', size = 10), axis.title  = element_text(colour = 'black', size = 10)) +
-#       xlab('Date') + ylab('Flow (l/s)')
-#   })
-# }
-# 
-# ################################################################################

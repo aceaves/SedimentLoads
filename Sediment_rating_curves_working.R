@@ -100,43 +100,40 @@ Flow$predConc <- exp(Flow$concLog)*1.3
 Flow$load <- (Flow$predConc*Flow$Flow*900)/1000000000 
   
 # Remove any N/As from the datset 
-test <- Flow %>%
+measure <- Flow %>%
  mutate(across(where(is.numeric), ~ ifelse(is.na(.), 0, .)))
-test <- within(test, acc_sum <- Reduce("+", load, accumulate = TRUE))
+measure <- within(measure, AccumLoad <- Reduce("+", load, accumulate = TRUE))
 
-test$summary <- test$acc_sum/1000000
+measure$summary <- measure$AccumLoad/1000000
 
-colnames(test)
+colnames(measure)
 
 #Set working directory for outputs and customise as needed (date etc)
-#setwd('M:/E_Science/Projects/306 HCE Project/R_analysis/Rating curves/Outputs/test/Outputs/test')
 setwd('./Outputs')
   
 #Table outputs
 write.csv(merged, file = "merged.csv", row.names = FALSE)
-write.csv(test, file = "test.csv", row.names = FALSE)
+write.csv(measure, file = "measure.csv", row.names = FALSE)
 
 ################################################################################
 #ggplot exports:
 
-
-  
 #Loop 2 through sites-----------------------------------------------------------
 for (i in sitelist) { 
 
-  test1 <- filter(test, SiteName == i)
+  measure1 <- filter(measure, SiteName == i)
   merged2 <- filter(merged, Site == i)
   merged3 <- filter(merged1, Site == i)
   #Summarise load for only i
-  test1 <- within(test1, acc_sum1 <- Reduce("+", load, accumulate = TRUE))
-  test1$summary1 <- test1$acc_sum1/10000
+  measure1 <- within(measure1, AccumLoad1 <- Reduce("+", load, accumulate = TRUE))
+  measure1$summary1 <- measure1$AccumLoad1/10000
   
   ###############################
   #Export Flowplot to a PNG file
   filename <- paste("FLOW_", i, ".png", sep="")
   png(filename, width=1200, height=800)
 
-  Flowplot <- ggplot(data = test1) +
+  Flowplot <- ggplot(data = measure1) +
     geom_path(aes(x = SampleTaken, y = Flow), colour = 'black', size = 0.4) + theme_bw() +
     scale_x_datetime(date_labels = "%b %Y", date_breaks = "6 months") +
     scale_y_continuous(labels = comma_format())+
@@ -151,8 +148,8 @@ for (i in sitelist) {
   filename <- paste("SSC_", i, ".png", sep="")
   png(filename, width=1200, height=800)
 
-  SSC <- ggplot(data = test1) +
-    geom_path(data = test1, aes(x = SampleTaken, y = Flow), colour = "black", size = 0.4)+
+  SSC <- ggplot(data = measure1) +
+    geom_path(data = measure1, aes(x = SampleTaken, y = Flow), colour = "black", size = 0.4)+
     geom_point(data = merged2, aes(x = SampleTaken, y = Flow, color = Measurement2), size = 1.5)+
     scale_color_manual(values = c("#009E73","#0072B2"), name = "Sample Type")+
     theme_bw() +
@@ -171,9 +168,9 @@ for (i in sitelist) {
   filename <- paste("CUMSSC_", i, ".png", sep="")
   png(filename, width=1200, height=800)
   
-  CUMSSC <- ggplot(data = test1) + 
-    geom_line(data = test1, aes(x = SampleTaken, y = predConc), colour = 'darkgoldenrod') + 
-    geom_line(data = test1, aes(x = SampleTaken, y = summary1*1000), colour = 'red')+
+  CUMSSC <- ggplot(data = measure1) + 
+    geom_line(data = measure1, aes(x = SampleTaken, y = predConc), colour = 'darkgoldenrod') + 
+    geom_line(data = measure1, aes(x = SampleTaken, y = summary1*1000), colour = 'red')+
     scale_y_continuous(name = "SSC (mg/l)",expand = c(0,0,0.2,2), sec.axis = sec_axis(~./1000, name = "Cumulative sediment (T)")) 
   
   print(CUMSSC)
@@ -184,16 +181,16 @@ for (i in sitelist) {
   filename <- paste("CUMSSC2_", i, ".png", sep="")
   png(filename, width=1200, height=800)
 
-  CUMSSC2 <- ggplot(data = test1) +
-    geom_line(data = test1, aes(x = SampleTaken, y = predConc), colour = 'darkgoldenrod') +
+  CUMSSC2 <- ggplot(data = measure1) +
+    geom_line(data = measure1, aes(x = SampleTaken, y = predConc), colour = 'darkgoldenrod') +
     geom_point(data = merged3, aes(x = SampleTaken, y = Conc, color = Measurement2), size = 1.5)+
-    geom_line(data = test1, aes(x = SampleTaken, y = summary1*1000), colour = 'red')+
+    geom_line(data = measure1, aes(x = SampleTaken, y = summary1*1000), colour = 'red')+
     scale_y_continuous(name = "SSC (mg/l)",expand = c(0,0,0.2,2), sec.axis = sec_axis(~./1000, name = "Cumulative sediment (T)"))
 
   print(CUMSSC2)
   dev.off()
 
-  summary(test$summary)
+  summary(measure$summary)
   print(summary)
   
 }
