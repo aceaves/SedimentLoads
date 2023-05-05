@@ -18,6 +18,9 @@
 library(shiny)
 library(ggplot2)
 
+df <- read.csv("M:/E_Science/Projects/306 HCE Project/R_analysis/Rating curves/git/Outputs/measure.csv")
+df$SampleTaken<-as.POSIXct(df$SampleTaken, format="%Y-%m-%d %H:%M:%S")
+
 ################################################################################
 
 # Define UI for miles per gallon app ----
@@ -36,21 +39,12 @@ ui <- fluidPage(
                   c(sitelist)),
       selectInput("measure", "Measurement:",
                   c("Flow (l/s)" = "Flow",
-                    "Flow Log" = "Flowlog",
-                    "Concentration Log" = "concLog",
                     "Predicted Concentration SSC (mg/l)" = "predConc",
-                    "Load (T)" = "load",
-                    "Accumulated Load (T)" = "AccumLoad",
-                    "Summary SSC (mg/l)" = "summary")),
-      # selectInput("measure", "Measurement:",
-      #             c("Flow" = "Flow (l/s)",
-      #               "Flowlog" = "Flow Log",
-      #               "concLog" = "Concentration Log",
-      #               "predConc" = "Predicted Concentration SSC (mg/l)",
-      #               "load" = "load (T)",
-      #               "AccumLoad" = "Accumulated Load (T)",
-      #               "summary" = "Summary SSC (mg/l)")),
-      dateRangeInput("dater","Date range:",start=df$SampleTaken[1],end=df$SampleTaken[nrow(df)]),
+                    "Load SSC (mg)" = "load",
+                    "Accumulated Load (T)" = "AccumLoadSite",
+                    "Summary Load All Sites (T)" = "SummaryAllSites",)),
+
+            dateRangeInput("dater","Date range:",start=df$SampleTaken[1],end=df$SampleTaken[nrow(df)]),
       
       # Input: Checkbox for whether outliers should be included ----
       #      checkboxInput("outliers", "Show outliers", TRUE)
@@ -75,8 +69,8 @@ ui <- fluidPage(
 # doesn't rely on any user inputs, we can do this once at startup
 # and then use the value throughout the lifetime of the app
 
-df <- read.csv("M:/E_Science/Projects/306 HCE Project/R_analysis/Rating curves/git/Outputs/measure.csv")
-df$SampleTaken<-as.POSIXct(df$SampleTaken, format="%Y-%m-%d %H:%M:%S")
+
+
 
 head# Define server logic to plot various variables against mpg ----
 server <- function(input, output) {
