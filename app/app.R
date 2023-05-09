@@ -6,17 +6,9 @@
 #    http://shiny.rstudio.com/
 #
 
-#
-# This is a Shiny web application. You can run the application by clicking
-# the 'Run App' button above.
-#
-# Find out more about building applications with Shiny here:
-#
-#    http://shiny.rstudio.com/
-#
-
 library(shiny)
 library(ggplot2)
+library(scales)
 
 df <- read.csv("M:/E_Science/Projects/306 HCE Project/R_analysis/Rating curves/git/Outputs/measure.csv")
 df$SampleTaken<-as.POSIXct(df$SampleTaken, format="%Y-%m-%d %H:%M:%S")
@@ -42,9 +34,8 @@ ui <- fluidPage(
                     "Predicted Concentration SSC (mg/l)" = "predConc",
                     "Load SSC (mg)" = "load",
                     "Accumulated Load (T)" = "AccumLoadSite",
-                    "Summary Load All Sites (T)" = "SummaryAllSites",)),
-
-            dateRangeInput("dater","Date range:",start=df$SampleTaken[1],end=df$SampleTaken[nrow(df)]),
+                    "Summary Load All Sites (T)" = "SummaryAllSites")),
+      dateRangeInput("dater","Date range:",start=df$SampleTaken[1],end=df$SampleTaken[nrow(df)]),
       
       # Input: Checkbox for whether outliers should be included ----
       #      checkboxInput("outliers", "Show outliers", TRUE)
@@ -68,8 +59,6 @@ ui <- fluidPage(
 # Tweak the "am" variable to have nicer factor labels -- since this
 # doesn't rely on any user inputs, we can do this once at startup
 # and then use the value throughout the lifetime of the app
-
-
 
 
 head# Define server logic to plot various variables against mpg ----
