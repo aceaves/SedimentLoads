@@ -11,7 +11,7 @@ library(scales)
 library(htmltools)
 library(plotly)
 
-df <- read.csv("M:/E_Science/Projects/306 HCE Project/R_analysis/Rating curves/git/Outputs/measure.csv")
+df <- read.csv("I:/306 HCE Project/R_analysis/Rating curves/RatingCurvesGit/Outputs/measure.csv")
 df$SampleTaken<-as.POSIXct(df$SampleTaken, format="%Y-%m-%d %H:%M:%S")
 
 ################################################################################

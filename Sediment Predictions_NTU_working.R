@@ -13,7 +13,7 @@ library(ggplot2)
 library(plotly)
 
 #set file path to ISCO Hilltop file 
-dfile <- HilltopData("M:/E_Science/Projects/306 HCE Project/Sites/ISCO_Processing.dsn")
+dfile <- HilltopData("I:/306 HCE Project/Sites/ISCO_Processing.dsn")
 
 # Get measurement list for respective sites 
 #measurementlist <- Hilltop::MeasurementList(dfile,"Tukituki River at Red Bridge")
@@ -29,7 +29,7 @@ measurement <- c(	'Suspended Solids [Suspended Solids]','Suspended Sediment Conc
 
 Hilltop::SiteList(dfile)
 # Date range. 'date2' = todays date 
-date1 <- "01-Jul-2021 00:00:00"
+date1 <- "01-Jul-2022 00:00:00"
 #date2 <- format(Sys.time(), "%Y-%m-%d")
 date2 <- "30-Jun-2023 00:00:00"
 
@@ -113,9 +113,9 @@ Final <- data.frame(merged1$Value, merged1$Date,merged1$Time)
 nrow(Final)
 
 
-print(Final)
-print(Final[1:104,],right=T, row.names = FALSE)
-print(Final[201:296,],right=T, row.names = FALSE)
+#print(Final)
+#print(Final[1:104,],right=T, row.names = FALSE)
+#print(Final[201:296,],right=T, row.names = FALSE)
 
 
 setwd('I:/306 HCE Project/R_analysis/2023analysis/output')

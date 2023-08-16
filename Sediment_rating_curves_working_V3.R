@@ -33,7 +33,7 @@ library(taskscheduleR)
 ################################################################################
 
 #Set file path to ISCO Hilltop file 
-dfile <- HilltopData("M:/E_Science/Projects/306 HCE Project/Sites/ISCO_Processing.dsn")
+dfile <- HilltopData("I:/306 HCE Project/Sites/ISCO_Processing.dsn")
 #dfile <- HilltopData("N:/HilltopData/EMAR/EMARFull.dsn")
 
 # Get measurement list for respective sites 
