@@ -42,8 +42,8 @@ sitelist <- SiteList(dfile, "")
 Hilltop::SiteList(dfile)
 
 # Date range. 
-date1 <- "04-September-2018 00:00:00"
-date2 <- "17-September-2018 00:00:00"
+date1 <- "01-February-2022 00:00:00"
+date2 <- "01-February-2023 00:00:00"
 
 #Measurements/data that we want to pull from the Hilltop file 
 measurement <- c(	'Suspended Solids [Suspended Solids]','Suspended Sediment Concentration', "Flow")  
@@ -80,6 +80,8 @@ colnames(melt) <- c("SampleTaken", "Flow", "SiteName","Measurement")
 # Data pulled from Hilltop has different time frequencies. 
 # The aggregate function is used to aggregate data to 15 minute intervals.
 melt$SampleTaken <-  lubridate::floor_date(melt$SampleTaken, "15 minutes")
+
+
   
 Flow <- filter(melt, Measurement == "Flow")
 Flow$Flow <- as.numeric(Flow$Flow)
@@ -95,7 +97,8 @@ Flow$SampleTaken <-as.character(Flow$SampleTaken)
   
 merged <- merge(Flow, SSC, by = "SampleTaken" )
 merged <- merged[,c(1,2,3,4,5,7)]
-  
+
+
 colnames(merged) <- c('SampleTaken','Site','Measurment', 'Flow', 'Conc', 'Measurement2')
 merged$SampleTaken <- as.POSIXct(merged$SampleTaken, format = "%Y-%m-%d %H:%M:%S")
 merged$Conc <- as.numeric(merged$Conc)
@@ -103,25 +106,28 @@ merged$Conc <- as.numeric(merged$Conc)
 merged$Measurement2[merged$Measurement2 == 'Suspended Sediment Concentration'] <- "SSC"
 merged$Measurement2[merged$Measurement2 == 'Suspended Solids'] <- "SS"
 merged1 <- filter(merged, SampleTaken > "2018-06-30" & Measurement2 == 'SSC')
-  
+
+
 ###############################################################################
+# Convert time/date to as.POSIXct 
+#Flow$SampleTaken <- as.POSIXct(Flow$SampleTaken , format = "%Y-%m-%d %H:%M:%S")
+# Convert flow column to numeric
+#Flow$Flow <- as.numeric(Flow$Flow) 
+#___________________________________________________________________
+
+
 # Convert time/date to as.POSIXct 
 Flow$SampleTaken <- as.POSIXct(Flow$SampleTaken , format = "%Y-%m-%d %H:%M:%S")
 # Convert flow column to numeric
 Flow$Flow <- as.numeric(Flow$Flow) 
-
-#Changed from here on
-
 # Take natural log of flow data
-Flow$Flowlog <- (Flow$Flow)  
+Flow$Flowlog <- log(Flow$Flow)  
 # Predict ln (concentration) based on equation calculated in the Sedrate software
-Flow$concLog <- (Flow$Flowlog) 
+Flow$concLog <- (Flow$Flowlog*1.089-7.004) 
 # Apply bias correction factor (calculated in Sedrate)
-Flow$predConc <- (Flow$concLog)
+Flow$predConc <- exp(Flow$concLog)*1.7 #changed from original of 1.3
 # Convert concentration to load and mg to T
-Flow$load <- (Flow$predConc*Flow$Flow)/1000000000
-
-#To here.
+Flow$load <- (Flow$predConc*Flow$Flow*900)/1000000000 
   
 # Remove any N/As from the dataset 
 measure <- Flow %>%
@@ -229,7 +235,7 @@ for (i in sitelist) {
 #write.csv(merged, file = "merged.csv", row.names = FALSE)
 
 #Subset output for speed
-measure2018event <- subset(measure, select = -c(Flowlog, concLog, AccumLoad))
-write.csv(measure2018event, file = "measure2018event.csv", row.names = FALSE)
+measure2022_23 <- subset(measure, select = -c(Flowlog, concLog, AccumLoad))
+write.csv(measure2022_23, file = "measure2022_23.csv", row.names = FALSE)
 
 ################################################################################

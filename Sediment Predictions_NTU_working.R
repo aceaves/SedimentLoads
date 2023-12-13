@@ -12,6 +12,7 @@ library(gt)
 library(ggplot2)
 library(plotly)
 
+
 #set file path to ISCO Hilltop file 
 dfile <- HilltopData("I:/306 HCE Project/Sites/ISCO_Processing.dsn")
 
@@ -27,12 +28,9 @@ Sites <- "Karamu Stream at Floodgates"
 #Measurements/data that we want to pull from the Hilltop file 
 measurement <- c(	'Suspended Solids [Suspended Solids]','Suspended Sediment Concentration', "Turbidity (FNU) [Turbidity (FNU)]")  
 
-#measurement <- c(	'Suspended Solids [Suspended Solids]','Suspended Sediment Concentration', "Turbidity (FNU) [Turbidity FNU (lab)]")  
-
 Hilltop::SiteList(dfile)
-# Date range. 'date2' = todays date 
+# Date range. 
 date1 <- "01-Jul-2022 00:00:00"
-#date2 <- format(Sys.time(), "%Y-%m-%d")
 date2 <- "30-Jun-2023 00:00:00"
 
 #____________________________________________________________________________________________________________________________________________________________________________________
