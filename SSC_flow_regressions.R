@@ -1,6 +1,9 @@
 ###############################################################################
-#SSC to flow regressions
-#__________________________________________________________
+# SSC to flow regressions
+# Run before Sediment Ratings Curves script.
+# Created by Dr Ashton Eaves, Senior Land Scientist, HBRC
+# December 2023
+#______________________________________________________________________________
 
 library(Hilltop)
 library(scales)
@@ -13,6 +16,7 @@ library(taskscheduleR)
 library(scales)
 library(HBRCDataAccess)
 library(dplyr)
+library(writexl)
 
 #Get flow data #################################################################
 
@@ -57,7 +61,7 @@ for(j in 1:site_no){
   {melt<- rbind(melt, Multiple_sites_id)
   }
 }
-#-------------------------------------------------------------------------------
+# End loop ---------------------------------------------------------------------
 # Rename column names for the new dataframe called 'melt' 
 colnames(melt) <- c("SampleTaken", "Flow", "SiteName","Measurement")
 
@@ -93,21 +97,38 @@ subset_merged1 <- select(merged1, SampleTaken, Site, Measurement, Flow)
 
 head(subset_merged1, 10)
 
+####    Output    ##############################################################
+
+#Set working directory for outputs
+setwd('./Outputs/Regressions')
+
+# Create an empty data frame to store statistics
+statistics_table <- data.frame(
+  Site = character(),
+  Iteration = integer(),
+  Slope = numeric(),
+  Intercept = numeric(),
+  RSquared = numeric(),
+  stringsAsFactors = FALSE
+)
+
 #Loop 2 through sites-----------------------------------------------------------
 for (i in sitelist) { 
 
-  ###  Get puddle SSC data  ######################################################
+  ###  Get puddle SSC data  ####################################################
   
   MyData <- getPuddleData(
     query_option = "fullPuddleHilltop",
     fromDate = "01-02-2018",
     toDate = "01-12-2023",
     catchments = "",
-    sites = "Tukituki River at Red Bridge",
+#   sites = "Aropaoanui River at Aropaoanui",
+    sites = i,
     projects = "340204",
     measurements = "Suspended Sediment Concentration",
     detids = ""
   )
+  head(MyData, 10)
 
   #Remove unnecessary columns and tidy time
   subset_MyData <- select(MyData, Time, Site, result, DetID)
@@ -115,7 +136,7 @@ for (i in sitelist) {
   subset_MyData$SampleTaken <- lubridate::round_date(subset_MyData$SampleTaken, "15 minutes") 
   head(subset_MyData, 10)
   
-  ### Merge SSC samples and flow  ################################################
+  ### Merge SSC samples and flow  ##########
   
   merged_df <- merge(subset_MyData, subset_merged1, by = c("SampleTaken", "Site"))
   head(merged_df, 10)
@@ -125,15 +146,16 @@ for (i in sitelist) {
   #Convert to cumecs
   merged_df$Flow <-(merged_df$Flow)/1000
   
-  ####    Output    ##############################################################
+  ###  Stats  ##############################
   
   # Fit a linear regression model
-  model <- lm(result ~ Flow, data = merged_df)
+  model <- lm(result ~ Flow, data = merged_df, na.action = na.exclude)
   
   # Display the formula on the plot
   coef_intercept <- coef(model)[1]
   coef_slope <- coef(model)[2]
   formula_text <- sprintf("DetID = %.3f + %.3f * Flow", coef_intercept, coef_slope)
+  #Populate RegressionValues.xlsx with formulas...
   
   # Calculate and display the R-squared value
   r_squared <- summary(model)$r.squared
@@ -144,12 +166,36 @@ for (i in sitelist) {
   # Extract start and end dates
   start_date <- min(merged_df$SampleTaken)
   end_date <- max(merged_df$SampleTaken)
+  
+  #Stats calculations
+  coef_slope <- runif(1)
+  coef_intercept <- runif(1)
+  r_squared <- runif(1)
+  
+  # Create a new row with statistics
+  new_row <- data.frame(
+    Site = i,  
+    Iteration = i,
+    Slope = coef_slope,
+    Intercept = coef_intercept,
+    RSquared = r_squared
+  )
+  
+  # Append the row to the statistics_table
+  statistics_table <- rbind(statistics_table, new_row)
+
+  
+  ######     Export plots     ##############
+  
+  # Export Sample SSC plot to a PNG file
+  filename <- paste("SSC_Flow_Regression_", site_name, ".png", sep="")
+  png(filename, width=1200, height=800)
 
   # Create a ggplot2 plot with a scatterplot and regression line
   Regression <- ggplot(merged_df, aes(x = Flow, y = result)) +
     geom_point(color = "Black", size = 2, shape = 19, stroke = 1) +
     geom_point(color = "darkgoldenrod", size = 1, shape = 19, stroke = 1) +
-    geom_smooth(method = "lm", formula = y ~ x, color = "red", se = FALSE) +
+    geom_smooth(method = "lm", color = "red", se = FALSE, formula = y ~ x) +
     labs(
       title = paste("Regression Plot:", site_name, " (", start_date, " to ", end_date, ")"),
       x = expression("Flow (m"^"3"/"s)"),
@@ -177,20 +223,19 @@ for (i in sitelist) {
       color = "forestgreen",
       size = 4
     )
-
-  #Show plot
-  
-  ######     Export plots     ###################################################
-
-  #Set working directory for outputs and customise as needed (date etc)
-  setwd('./Outputs/Regressions')
-  
-  
-  # Export Sample SSC plot to a PNG file
-  filename <- paste("SSC_Flow_Regression_", site_name, ".png", sep="")
-  png(filename, width=1200, height=800)
-  
+    # Print and close the plot
   print(Regression)
-  dev.off()
-
+  dev.off()  # Close the PNG device
+  
 }
+#End loop ----------------------------------------------------------------------
+
+
+# Print the resulting statistical data frame
+print(statistics_table)
+# Specify the Excel file path and name
+excel_file <- "I:/306 HCE Project/R_analysis/Rating curves/RatingCurvesGit/Outputs/Regressions/statistics_output.xlsx"
+# Write the data frame to an Excel file
+write_xlsx(statistics_table, excel_file)
+
+

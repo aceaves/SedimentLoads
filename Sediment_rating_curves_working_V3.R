@@ -12,6 +12,7 @@ library(hms)
 library(lubridate) 
 library(gt)
 library(taskscheduleR)
+library(openxlsx)
 
 ################################################################################
 #Set up task scheduler
@@ -109,11 +110,18 @@ merged1 <- filter(merged, SampleTaken > "2018-06-30" & Measurement2 == 'SSC')
 
 
 ###############################################################################
-# Convert time/date to as.POSIXct 
-#Flow$SampleTaken <- as.POSIXct(Flow$SampleTaken , format = "%Y-%m-%d %H:%M:%S")
-# Convert flow column to numeric
-#Flow$Flow <- as.numeric(Flow$Flow) 
+
 #___________________________________________________________________
+
+# Read regression file into a data frame
+regression_values <- "I:/306 HCE Project/R_analysis/Rating curves/RatingCurvesGit/Outputs/RegressionValues.xlsx"
+regression <- read.xlsx(regression_values)
+regression$Slope <- as.numeric(regression$Slope)
+regression$Intercept <- as.numeric(regression$Intercept)
+
+subval_regression <- select(regression, Site, Slope)
+# Print the data
+print(subval_regression)
 
 
 # Convert time/date to as.POSIXct 
@@ -125,7 +133,7 @@ Flow$Flowlog <- log(Flow$Flow)
 # Predict ln (concentration) based on equation calculated in the Sedrate software
 Flow$concLog <- (Flow$Flowlog*1.089-7.004) 
 # Apply bias correction factor (calculated in Sedrate)
-Flow$predConc <- exp(Flow$concLog)*1.7 #changed from original of 1.3
+Flow$predConc <- exp(Flow$concLog)*2.32 #changed from original of 1.3
 # Convert concentration to load and mg to T
 Flow$load <- (Flow$predConc*Flow$Flow*900)/1000000000 
   
