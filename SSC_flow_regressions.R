@@ -146,40 +146,40 @@ for (i in sitelist) {
   #Convert to cumecs
   merged_df$Flow <-(merged_df$Flow)/1000
   
-  ###  Stats  ##############################
-  
-  # Fit a linear regression model
-  model <- lm(result ~ Flow, data = merged_df, na.action = na.exclude)
-  
-  # Display the formula on the plot
-  coef_intercept <- coef(model)[1]
-  coef_slope <- coef(model)[2]
-  formula_text <- sprintf("DetID = %.3f + %.3f * Flow", coef_intercept, coef_slope)
-  #Populate RegressionValues.xlsx with formulas...
-  
-  # Calculate and display the R-squared value
-  r_squared <- summary(model)$r.squared
-  r_squared_text <- sprintf("R-squared = %.3f", r_squared)
-  
   # Extract a unique Site Name (assuming the Site column contains categorical values)
   site_name <- unique(merged_df$Site)
   # Extract start and end dates
   start_date <- min(merged_df$SampleTaken)
   end_date <- max(merged_df$SampleTaken)
   
-  #Stats calculations
-  coef_slope <- runif(1)
-  coef_intercept <- runif(1)
-  r_squared <- runif(1)
+  ###  Stats  ##############################
   
-  # Create a new row with statistics
-  new_row <- data.frame(
-    Site = i,  
-    Iteration = i,
-    Slope = coef_slope,
-    Intercept = coef_intercept,
-    RSquared = r_squared
-  )
+  # Check for non-missing values
+  if (sum(!is.na(merged_df$Flow) & !is.na(merged_df$result)) > 1) {
+    # Fit linear regression only if there are non-missing values
+    lm_model <- lm(result ~ Flow, data = merged_df, na.action = na.exclude)
+    
+    # Extract coefficients and R-squared
+    coef_slope <- coef(lm_model)[2]
+    coef_intercept <- coef(lm_model)[1]
+    r_squared <- summary(lm_model)$r.squared
+    
+    # Create a new row with statistics
+    new_row <- data.frame(
+      Site = site_name,
+      Iteration = i,  # You may want to specify an iteration number here
+      Slope = coef_slope,
+      Intercept = coef_intercept,
+      RSquared = r_squared
+    )
+    
+    # Append the row to the statistics_table
+    statistics_table <- rbind(statistics_table, new_row)
+  } else {
+    cat("Skipping site:", site_name, "due to missing values\n")
+  }
+  
+
   
   # Append the row to the statistics_table
   statistics_table <- rbind(statistics_table, new_row)
