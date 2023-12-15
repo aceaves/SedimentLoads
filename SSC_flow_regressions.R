@@ -18,6 +18,11 @@ library(HBRCDataAccess)
 library(dplyr)
 library(writexl)
 
+
+library(zoo)
+library(xts)
+
+
 #Get flow data #################################################################
 
 #Set file path to ISCO Hilltop file 
@@ -62,8 +67,64 @@ for(j in 1:site_no){
   }
 }
 # End loop ---------------------------------------------------------------------
-# Rename column names for the new dataframe called 'melt' 
-colnames(melt) <- c("SampleTaken", "Flow", "SiteName","Measurement")
+
+#Required: Need to have hilltop manager/hydro working on same computer as Rstudio install for Hilltop package.  Bit versions of R and hydrolib must match.
+
+
+#Hilltop measurement "request as" name 
+M <- c("Water Temperature (D-Opto)")  #DOpto
+
+#processed tidbit and DOpto data is in Hilltop Allsites file
+EP <-    "//hydro/hydro/Hilltop/Archive/Allsites.hts"   #filepath of hilltop file with water temp measurements
+
+
+FindHydroYear<- function (dateVect){
+  #function to return hydro year from date  
+  
+  yr <- year(dateVect) 
+  m <- month(dateVect)
+  
+  ifelse( m < 7, yr-1, yr)
+  
+}
+
+#get data from Hilltop
+HData <- HilltopData(EP)  ##get HilltopDataObjs
+sites <- unlist(c(SiteList(HData, M) %>% select(Site)))      #Return sites in hilltop file for given measurement
+
+#loop combines each sites data in single df
+for (s in sites) {
+  
+  SiteData <- GetData(HData,siteName = s, measurement = M, startTime = "",endTime = "")
+  SiteName <- xtsAttributes(SiteData)$SiteName # get sitename
+  SiteData<- fortify.zoo(SiteData)
+  SiteData$Site <- SiteName
+  
+  
+  #create DF of Daily CRI for all sites 
+  if (!exists("AllSites")) {
+    AllSites <- SiteData
+    
+  }
+  
+  else
+    AllSites <- rbind(SiteData,AllSites)
+  
+}
+
+
+
+
+
+# Rename column names for the new dataframe called 'melt'
+new_colnames <- c("SampleTaken", "Flow", "SiteName", "Measurement")
+
+# Ensure the number of new column names matches the number of columns in 'melt'
+if (length(new_colnames) == ncol(melt)) {
+  colnames(melt) <- new_colnames
+} else {
+  warning("Number of new column names does not match the number of columns in 'melt'")
+}
 
 # Data pulled from Hilltop has different time frequencies. 
 # The aggregate function is used to aggregate data to 15 minute intervals.
@@ -160,9 +221,9 @@ for (i in sitelist) {
     lm_model <- lm(result ~ Flow, data = merged_df, na.action = na.exclude)
     
     # Extract coefficients and R-squared
-    coef_slope <- coef(lm_model)[2]
-    coef_intercept <- coef(lm_model)[1]
-    r_squared <- summary(lm_model)$r.squared
+    coef_slope <- round(coef(lm_model)[2], 2)
+    coef_intercept <- round(coef(lm_model)[1], 2)
+    r_squared <- round(summary(lm_model)$r.squared, 2)
     
     # Create a new row with statistics
     new_row <- data.frame(
@@ -179,7 +240,12 @@ for (i in sitelist) {
     cat("Skipping site:", site_name, "due to missing values\n")
   }
   
-
+  # Define the formula text
+  formula_text <- paste(coef_intercept, "~", coef_slope, "* x")
+  # Convert formula_text to a formula
+  my_formula <- as.formula(formula_text)
+  # Create R-squared text
+  r_squared_text <- paste("R-squared =", r_squared)
   
   # Append the row to the statistics_table
   statistics_table <- rbind(statistics_table, new_row)
@@ -216,7 +282,7 @@ for (i in sitelist) {
     annotate(
       "text", 
       x = min(merged_df$Flow), 
-      y = max(merged_df$result) - 200, 
+      y = max(merged_df$result) - 400, 
       label = r_squared_text, 
       hjust = 0, 
       vjust = 1,
@@ -230,12 +296,14 @@ for (i in sitelist) {
 }
 #End loop ----------------------------------------------------------------------
 
-
+#Filter out duplicates
+statistics_table <- distinct(statistics_table, Site, .keep_all = TRUE)
 # Print the resulting statistical data frame
 print(statistics_table)
 # Specify the Excel file path and name
 excel_file <- "I:/306 HCE Project/R_analysis/Rating curves/RatingCurvesGit/Outputs/Regressions/statistics_output.xlsx"
 # Write the data frame to an Excel file
 write_xlsx(statistics_table, excel_file)
+
 
 
