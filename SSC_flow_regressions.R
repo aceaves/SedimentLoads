@@ -17,11 +17,8 @@ library(scales)
 library(HBRCDataAccess)
 library(dplyr)
 library(writexl)
-
-
 library(zoo)
 library(xts)
-
 
 #Get flow data #################################################################
 
@@ -67,54 +64,6 @@ for(j in 1:site_no){
   }
 }
 # End loop ---------------------------------------------------------------------
-
-#Required: Need to have hilltop manager/hydro working on same computer as Rstudio install for Hilltop package.  Bit versions of R and hydrolib must match.
-
-
-#Hilltop measurement "request as" name 
-M <- c("Water Temperature (D-Opto)")  #DOpto
-
-#processed tidbit and DOpto data is in Hilltop Allsites file
-EP <-    "//hydro/hydro/Hilltop/Archive/Allsites.hts"   #filepath of hilltop file with water temp measurements
-
-
-FindHydroYear<- function (dateVect){
-  #function to return hydro year from date  
-  
-  yr <- year(dateVect) 
-  m <- month(dateVect)
-  
-  ifelse( m < 7, yr-1, yr)
-  
-}
-
-#get data from Hilltop
-HData <- HilltopData(EP)  ##get HilltopDataObjs
-sites <- unlist(c(SiteList(HData, M) %>% select(Site)))      #Return sites in hilltop file for given measurement
-
-#loop combines each sites data in single df
-for (s in sites) {
-  
-  SiteData <- GetData(HData,siteName = s, measurement = M, startTime = "",endTime = "")
-  SiteName <- xtsAttributes(SiteData)$SiteName # get sitename
-  SiteData<- fortify.zoo(SiteData)
-  SiteData$Site <- SiteName
-  
-  
-  #create DF of Daily CRI for all sites 
-  if (!exists("AllSites")) {
-    AllSites <- SiteData
-    
-  }
-  
-  else
-    AllSites <- rbind(SiteData,AllSites)
-  
-}
-
-
-
-
 
 # Rename column names for the new dataframe called 'melt'
 new_colnames <- c("SampleTaken", "Flow", "SiteName", "Measurement")
@@ -250,8 +199,7 @@ for (i in sitelist) {
   # Append the row to the statistics_table
   statistics_table <- rbind(statistics_table, new_row)
 
-  
-  ######     Export plots     ##############
+    ######     Export plots     ##############
   
   # Export Sample SSC plot to a PNG file
   filename <- paste("SSC_Flow_Regression_", site_name, ".png", sep="")
@@ -306,4 +254,4 @@ excel_file <- "I:/306 HCE Project/R_analysis/Rating curves/RatingCurvesGit/Outpu
 write_xlsx(statistics_table, excel_file)
 
 
-
+################################################################################

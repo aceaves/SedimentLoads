@@ -13,6 +13,8 @@ library(lubridate)
 library(gt)
 library(taskscheduleR)
 library(openxlsx)
+library(zoo)
+library(xts)
 
 ################################################################################
 #Set up task scheduler
@@ -114,12 +116,13 @@ merged1 <- filter(merged, SampleTaken > "2018-06-30" & Measurement2 == 'SSC')
 #___________________________________________________________________
 
 # Read regression file into a data frame
-regression_values <- "I:/306 HCE Project/R_analysis/Rating curves/RatingCurvesGit/Outputs/RegressionValues.xlsx"
-regression <- read.xlsx(regression_values)
+regression_output <- "I:/306 HCE Project/R_analysis/Rating curves/RatingCurvesGit/Outputs/Regressions/statistics_output.xlsx"
+regression <- read.xlsx(regression_output)
 regression$Slope <- as.numeric(regression$Slope)
 regression$Intercept <- as.numeric(regression$Intercept)
+regression$Intercept <- as.numeric(regression$RSquared)
 
-subval_regression <- select(regression, Site, Slope)
+subval_regression <- select(regression, Site, Slope, Intercept, RSquared)
 # Print the data
 print(subval_regression)
 
@@ -133,7 +136,8 @@ Flow$Flowlog <- log(Flow$Flow)
 # Predict ln (concentration) based on equation calculated in the Sedrate software
 Flow$concLog <- (Flow$Flowlog*1.089-7.004) 
 # Apply bias correction factor (calculated in Sedrate)
-Flow$predConc <- exp(Flow$concLog)*2.32 #changed from original of 1.3
+# Original: Flow$predConc <- exp(Flow$concLog)*1.3
+Flow$predConc <- Flow$concLog*2.32 + 236
 # Convert concentration to load and mg to T
 Flow$load <- (Flow$predConc*Flow$Flow*900)/1000000000 
   
@@ -155,41 +159,41 @@ colnames(measure)
 
 #Set working directory for outputs and customise as needed (date etc)
 setwd('./Outputs')
-  
+
 ################################################################################
 #ggplot exports:
 
 #Loop 2 through sites-----------------------------------------------------------
 for (i in sitelist) { 
-
+  
   measure1 <- filter(measure, SiteName == i)
   merged2 <- filter(merged, Site == i)
   merged3 <- filter(merged1, Site == i)
   #Summarise load for only i
   measure1 <- within(measure1, AccumLoad1 <- Reduce("+", load, accumulate = TRUE)/100)
   measure1$summary1 <- measure1$AccumLoad1
-
-
+  
+  
   ###############################
   #Export Flowplot to a PNG file
   filename <- paste("FLOW_", i, ".png", sep="")
   png(filename, width=1200, height=800)
-
+  
   Flowplot <- ggplot(data = measure1) +
     geom_path(aes(x = SampleTaken, y = Flow), colour = 'black', size = 0.4) + theme_bw() +
     scale_x_datetime(date_labels = "%b %Y", date_breaks = "6 months") +
     scale_y_continuous(labels = comma_format())+
     theme(axis.text = element_text(colour = 'black', size = 10), axis.title  = element_text(colour = 'black', size = 10)) +
     xlab('Date') + ylab('Flow (l/s)')
-
+  
   print(Flowplot)
   dev.off()
-
+  
   ###############################
   # Export Sample SSC plot to a PNG file
   filename <- paste("SSC_", i, ".png", sep="")
   png(filename, width=1200, height=800)
-
+  
   SSC <- ggplot(data = measure1) +
     geom_path(data = measure1, aes(x = SampleTaken, y = Flow), colour = "black", size = 0.4)+
     geom_point(data = merged2, aes(x = SampleTaken, y = Flow, color = Measurement2), size = 1.5)+
@@ -197,46 +201,47 @@ for (i in sitelist) {
     theme_bw() +
     scale_x_datetime(date_labels = "%b %Y", date_breaks = "6 months") +
     scale_y_continuous(labels = comma_format())+
-#    scale_y_continuous(name = "SSC (mg/l)",expand = c(0,0,0.2,2), sec.axis = sec_axis(~./1000, name = "Sediment (mg/l)"))
+    #    scale_y_continuous(name = "SSC (mg/l)",expand = c(0,0,0.2,2), sec.axis = sec_axis(~./1000, name = "Sediment (mg/l)"))
     theme(axis.text = element_text(colour = "black", size = 10), axis.title  = element_text(colour = "black", size = 10)) +
     theme(legend.title = element_text(size = 9, colour = "black")) +
     xlab("Date")+
     ylab("Flow (l/s)")
-
+  
   print(SSC)
   dev.off()
-
+  
   ################################
- # Export Cumulative Sediment1 plot to a PNG file
+  # Export Cumulative Sediment1 plot to a PNG file
   filename <- paste("CUMSSC_", i, ".png", sep="")
   png(filename, width=1200, height=800)
-
+  
   CUMSSC <- ggplot(data = measure1) +
     geom_line(data = measure1, aes(x = SampleTaken, y = predConc), colour = 'darkgoldenrod') +
     geom_line(data = measure1, aes(x = SampleTaken, y = summary1*0.1), colour = 'red')+
     scale_y_continuous(name = "SSC (mg/l)",expand = c(0,0,0.2,2), sec.axis = sec_axis(~./0.1, name = "Cumulative sediment (T)"))
-
+  
   print(CUMSSC)
   dev.off()
-
+  
   ################################
   # Export Cumulative Sediment2 plot to a PNG file
-   filename <- paste("CUMSSC2_", i, ".png", sep="")
-   png(filename, width=1200, height=800)
-
-   CUMSSC2 <- ggplot(data = measure1) +
-     geom_line(data = measure1, aes(x = SampleTaken, y = predConc), colour = 'darkgoldenrod') +
-     geom_point(data = merged3, aes(x = SampleTaken, y = Conc, color = Measurement2), size = 1.5)+
-     geom_line(data = measure1, aes(x = SampleTaken, y = summary1*1), colour = 'red')+
-     scale_y_continuous(name = "SSC (mg/l)",expand = c(0,0,0.2,2), sec.axis = sec_axis(~./1, name = "Cumulative sediment (T)"))
-
-   print(CUMSSC2)
-   dev.off()
-
+  filename <- paste("CUMSSC2_", i, ".png", sep="")
+  png(filename, width=1200, height=800)
+  
+  CUMSSC2 <- ggplot(data = measure1) +
+    geom_line(data = measure1, aes(x = SampleTaken, y = predConc), colour = 'darkgoldenrod') +
+    geom_point(data = merged3, aes(x = SampleTaken, y = Conc, color = Measurement2), size = 1.5)+
+    geom_line(data = measure1, aes(x = SampleTaken, y = summary1*1), colour = 'red')+
+    scale_y_continuous(name = "SSC (mg/l)",expand = c(0,0,0.2,2), sec.axis = sec_axis(~./1, name = "Cumulative sediment (T)"))
+  
+  print(CUMSSC2)
+  dev.off()
+  
   
   summary(measure1$summary1)
-
+  
 }
+
 #Loop 2 completed---------------------------------------------------------------
 
 #Table outputs
