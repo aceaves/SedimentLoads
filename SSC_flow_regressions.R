@@ -230,7 +230,7 @@ for (i in sitelist) {
     annotate(
       "text", 
       x = min(merged_df$Flow), 
-      y = max(merged_df$result) - 400, 
+      y = max(merged_df$result) - 600, 
       label = r_squared_text, 
       hjust = 0, 
       vjust = 1,

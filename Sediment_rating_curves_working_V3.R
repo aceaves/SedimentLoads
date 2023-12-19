@@ -84,8 +84,6 @@ colnames(melt) <- c("SampleTaken", "Flow", "SiteName","Measurement")
 # The aggregate function is used to aggregate data to 15 minute intervals.
 melt$SampleTaken <-  lubridate::floor_date(melt$SampleTaken, "15 minutes")
 
-
-  
 Flow <- filter(melt, Measurement == "Flow")
 Flow$Flow <- as.numeric(Flow$Flow)
 Flow <- Flow %>% group_by(SampleTaken, SiteName, Measurement) %>%
@@ -101,7 +99,6 @@ Flow$SampleTaken <-as.character(Flow$SampleTaken)
 merged <- merge(Flow, SSC, by = "SampleTaken" )
 merged <- merged[,c(1,2,3,4,5,7)]
 
-
 colnames(merged) <- c('SampleTaken','Site','Measurment', 'Flow', 'Conc', 'Measurement2')
 merged$SampleTaken <- as.POSIXct(merged$SampleTaken, format = "%Y-%m-%d %H:%M:%S")
 merged$Conc <- as.numeric(merged$Conc)
@@ -110,10 +107,7 @@ merged$Measurement2[merged$Measurement2 == 'Suspended Sediment Concentration'] <
 merged$Measurement2[merged$Measurement2 == 'Suspended Solids'] <- "SS"
 merged1 <- filter(merged, SampleTaken > "2018-06-30" & Measurement2 == 'SSC')
 
-
 ###############################################################################
-
-#___________________________________________________________________
 
 # Read regression file into a data frame
 regression_output <- "I:/306 HCE Project/R_analysis/Rating curves/RatingCurvesGit/Outputs/Regressions/statistics_output.xlsx"
@@ -126,6 +120,7 @@ subval_regression <- select(regression, Site, Slope, Intercept, RSquared)
 # Print the data
 print(subval_regression)
 
+##########################################
 
 # Convert time/date to as.POSIXct 
 Flow$SampleTaken <- as.POSIXct(Flow$SampleTaken , format = "%Y-%m-%d %H:%M:%S")
@@ -134,13 +129,16 @@ Flow$Flow <- as.numeric(Flow$Flow)
 # Take natural log of flow data
 Flow$Flowlog <- log(Flow$Flow)  
 # Predict ln (concentration) based on equation calculated in the Sedrate software
-Flow$concLog <- (Flow$Flowlog*1.089-7.004) 
+#Flow$concLog <- (Flow$Flowlog*1.089-7.004) 
+Flow$concLog <- (Flow$Flowlog*1.089-6.5)
 # Apply bias correction factor (calculated in Sedrate)
 # Original: Flow$predConc <- exp(Flow$concLog)*1.3
-Flow$predConc <- Flow$concLog*2.32 + 236
+Flow$predConc <- exp(Flow$concLog)/2.32+236
 # Convert concentration to load and mg to T
 Flow$load <- (Flow$predConc*Flow$Flow*900)/1000000000 
-  
+# Convert flow to cumecs
+#Flow$Flow <- (Flow$Flow)/1000
+
 # Remove any N/As from the dataset 
 measure <- Flow %>%
  mutate(across(where(is.numeric), ~ ifelse(is.na(.), 0, .)))
@@ -180,11 +178,12 @@ for (i in sitelist) {
   png(filename, width=1200, height=800)
   
   Flowplot <- ggplot(data = measure1) +
-    geom_path(aes(x = SampleTaken, y = Flow), colour = 'black', size = 0.4) + theme_bw() +
+    geom_path(aes(x = SampleTaken, y = Flow/1000), colour = 'blue', size = 0.4) + theme_bw() +
     scale_x_datetime(date_labels = "%b %Y", date_breaks = "6 months") +
     scale_y_continuous(labels = comma_format())+
-    theme(axis.text = element_text(colour = 'black', size = 10), axis.title  = element_text(colour = 'black', size = 10)) +
-    xlab('Date') + ylab('Flow (l/s)')
+#    theme(axis.text = element_text(colour = 'black', size = 10), axis.title  = element_text(colour = 'black', size = 10)) +
+    xlab('Date') + 
+    ylab('Flow (m3/s)')
   
   print(Flowplot)
   dev.off()
@@ -195,17 +194,14 @@ for (i in sitelist) {
   png(filename, width=1200, height=800)
   
   SSC <- ggplot(data = measure1) +
-    geom_path(data = measure1, aes(x = SampleTaken, y = Flow), colour = "black", size = 0.4)+
-    geom_point(data = merged2, aes(x = SampleTaken, y = Flow, color = Measurement2), size = 1.5)+
-    scale_color_manual(values = c("#009E73","#0072B2"), name = "Sample Type")+
-    theme_bw() +
+    geom_path(data = measure1, aes(x = SampleTaken, y = Flow/1000), colour = "blue", size = 0.4)+
+    geom_point(data = merged2, aes(x = SampleTaken, y = Flow/1000, color = Measurement2), size = 1.5)+
+    scale_color_manual(values = c("#009E73",'coral1'), name = "Sample Type")+
     scale_x_datetime(date_labels = "%b %Y", date_breaks = "6 months") +
     scale_y_continuous(labels = comma_format())+
-    #    scale_y_continuous(name = "SSC (mg/l)",expand = c(0,0,0.2,2), sec.axis = sec_axis(~./1000, name = "Sediment (mg/l)"))
     theme(axis.text = element_text(colour = "black", size = 10), axis.title  = element_text(colour = "black", size = 10)) +
-    theme(legend.title = element_text(size = 9, colour = "black")) +
     xlab("Date")+
-    ylab("Flow (l/s)")
+    ylab("Flow (m3/s)")
   
   print(SSC)
   dev.off()
@@ -230,7 +226,7 @@ for (i in sitelist) {
   
   CUMSSC2 <- ggplot(data = measure1) +
     geom_line(data = measure1, aes(x = SampleTaken, y = predConc), colour = 'darkgoldenrod') +
-    geom_point(data = merged3, aes(x = SampleTaken, y = Conc, color = Measurement2), size = 1.5)+
+    geom_point(data = merged3, aes(x = SampleTaken, y = Conc, color = Measurement2),colour = 'coral1', size = 1.5)+
     geom_line(data = measure1, aes(x = SampleTaken, y = summary1*1), colour = 'red')+
     scale_y_continuous(name = "SSC (mg/l)",expand = c(0,0,0.2,2), sec.axis = sec_axis(~./1, name = "Cumulative sediment (T)"))
   
