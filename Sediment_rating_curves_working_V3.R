@@ -109,6 +109,22 @@ merged1 <- filter(merged, SampleTaken > "2018-06-30" & Measurement2 == 'SSC')
 
 ###############################################################################
 
+#Set working directory for outputs and customise as needed (date etc)
+setwd('./Outputs')
+
+# Create an empty data frame to store statistics
+statistics_table_ratings <- data.frame(
+  site_name = character(),
+  Min = numeric(),
+  Q1 = numeric(),
+  Median = numeric(),
+  Mean = numeric(),
+  Q3 = numeric(),
+  Max = numeric(),
+  stringsAsFactors = FALSE)
+
+###############################################################################
+
 # Read regression file into a data frame
 regression_output <- "I:/306 HCE Project/R_analysis/Rating curves/RatingCurvesGit/Outputs/Regressions/statistics_output.xlsx"
 regression <- read.xlsx(regression_output)
@@ -153,13 +169,8 @@ measure <- measure %>%
   mutate(AccumLoadSite = cumsum(load)/100)
 
 
-colnames(measure)
-
-#Set working directory for outputs and customise as needed (date etc)
-setwd('./Outputs')
-
 ################################################################################
-#ggplot exports:
+#Exports:
 
 #Loop 2 through sites-----------------------------------------------------------
 for (i in sitelist) { 
@@ -167,10 +178,25 @@ for (i in sitelist) {
   measure1 <- filter(measure, SiteName == i)
   merged2 <- filter(merged, Site == i)
   merged3 <- filter(merged1, Site == i)
-  #Summarise load for only i
+  # Get summary statistics for the current iteration for load
   measure1 <- within(measure1, AccumLoad1 <- Reduce("+", load, accumulate = TRUE)/100)
   measure1$summary1 <- measure1$AccumLoad1
+  summary_stats <- summary(measure1$summary1)
   
+  # Create a new row with statistics
+  new_row <- data.frame(
+    site_name = i,
+    Min = round(as.numeric(summary_stats[1]), 2),
+    Q1 = round(as.numeric(summary_stats[2]), 2),
+    Median = round(as.numeric(summary_stats[3]), 2),
+    Mean = round(as.numeric(summary_stats[4]), 2),
+    Q3 = round(as.numeric(summary_stats[5]), 2),
+    Max = round(as.numeric(summary_stats[6]), 2),
+    stringsAsFactors = FALSE
+  )
+  
+  # Add the new row to the statistics table
+  statistics_table_ratings <- rbind(statistics_table_ratings, new_row)
   
   ###############################
   #Export Flowplot to a PNG file
@@ -178,13 +204,10 @@ for (i in sitelist) {
   png(filename, width=1200, height=800)
   
   Flowplot <- ggplot(data = measure1) +
-    geom_path(aes(x = SampleTaken, y = Flow/1000), colour = 'blue', size = 0.4) + theme_bw() +
-    scale_x_datetime(date_labels = "%b %Y", date_breaks = "6 months") +
-    scale_y_continuous(labels = comma_format())+
-#    theme(axis.text = element_text(colour = 'black', size = 10), axis.title  = element_text(colour = 'black', size = 10)) +
-    xlab('Date') + 
-    ylab('Flow (m3/s)')
-  
+    geom_path(aes(x = SampleTaken, y = Flow/1000), colour = 'blue', size = 0.4) +
+    scale_x_datetime(date_labels = "%b %Y", date_breaks = "3 months", name = "Date") +
+    scale_y_continuous(labels = comma_format(), name = "Flow (m3/s)")
+
   print(Flowplot)
   dev.off()
   
@@ -197,12 +220,9 @@ for (i in sitelist) {
     geom_path(data = measure1, aes(x = SampleTaken, y = Flow/1000), colour = "blue", size = 0.4)+
     geom_point(data = merged2, aes(x = SampleTaken, y = Flow/1000, color = Measurement2), size = 1.5)+
     scale_color_manual(values = c("#009E73",'coral1'), name = "Sample Type")+
-    scale_x_datetime(date_labels = "%b %Y", date_breaks = "6 months") +
-    scale_y_continuous(labels = comma_format())+
-    theme(axis.text = element_text(colour = "black", size = 10), axis.title  = element_text(colour = "black", size = 10)) +
-    xlab("Date")+
-    ylab("Flow (m3/s)")
-  
+    scale_x_datetime(date_labels = "%b %Y", date_breaks = "3 months", name = "Date") +
+    scale_y_continuous(labels = comma_format(),  name = "Flow (m3/s)")
+
   print(SSC)
   dev.off()
   
@@ -233,15 +253,17 @@ for (i in sitelist) {
   print(CUMSSC2)
   dev.off()
   
-  
-  summary(measure1$summary1)
-  
 }
 
 #Loop 2 completed---------------------------------------------------------------
 
+#Print column names
+colnames(measure)
+
+# Print the resulting table
+print(statistics_table_ratings)
 #Table outputs
-#write.csv(merged, file = "merged.csv", row.names = FALSE)
+write.csv(statistics_table_ratings, file = "statistics_table_ratings.csv", row.names = FALSE)
 
 #Subset output for speed
 measure2022_23 <- subset(measure, select = -c(Flowlog, concLog, AccumLoad))
