@@ -147,8 +147,10 @@ Flow$Flow <- as.numeric(Flow$Flow)
 # Take natural log of flow data
 Flow$Flowlog <- log(Flow$Flow)  
 # Predict ln (concentration) based on equation calculated in the Sedrate software
-Flow$concLog <- (Flow$Flowlog*1.089-7.004) 
-#Flow$concLog <- (Flow$Flowlog*1.089-6.5)
+#Flow$concLog <- (Flow$Flowlog*1.089-7.004) 
+#Flow$concLog <- (Flow$Flowlog*1.089-6.5) #Calibrated to Tukituki
+Flow$concLog <- (Flow$Flowlog*1.089) #Calibrated to Aropaoanui
+Flow$concLog <- (Flow$Flowlog) #Calibrate using regression function below.
 # Apply bias correction factor (calculated in Sedrate)
 # Original: Flow$predConc <- exp(Flow$concLog)*1.3
 
@@ -158,13 +160,16 @@ for (i in sitelist) {
   # Assuming 'SiteName' is the key for the lookup
   lookup_site <- i  # Replace with the actual site name you are interested in
 
-  # Perform lookup to get the corresponding value
-  lookup_result <- subval_regression$Slope[subval_regression$SiteName == lookup_site]
-
+  # Perform lookup to get the corresponding values (Slope and Intercept)
+  lookup_result <- subval_regression[subval_regression$SiteName == lookup_site, c("Slope", "Intercept")]
+  
   # Check if the lookup was successful
-  if (length(lookup_result) > 0) {
-    # Use the looked-up value in your calculation
-    Flow$predConc <- exp(Flow$concLog) / lookup_result
+  if (nrow(lookup_result) > 0) {
+    # Use the looked-up values in your calculation
+    slope_value <- lookup_result$Slope
+    intercept_value <- lookup_result$Intercept
+    
+    Flow$predConc <- exp(Flow$concLog) / slope_value + intercept_value
   } else {
     cat("Site not found in the lookup table:", lookup_site, "\n")
   }
@@ -279,8 +284,6 @@ for (i in sitelist) {
 
 #Loop 2 completed---------------------------------------------------------------
 
-#Print column names
-colnames(measure)
 
 # Print the resulting table
 print(statistics_table_ratings)

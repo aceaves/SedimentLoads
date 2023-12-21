@@ -119,6 +119,8 @@ statistics_table <- data.frame(
   Slope = numeric(),
   Intercept = numeric(),
   RSquared = numeric(),
+  Slope_SE = numeric(),  # Standard error for Slope
+  Intercept_SE = numeric(),  # Standard error for Intercept
   stringsAsFactors = FALSE
 )
 
@@ -173,6 +175,12 @@ for (i in sitelist) {
     coef_slope <- round(coef(lm_model)[2], 2)
     coef_intercept <- round(coef(lm_model)[1], 2)
     r_squared <- round(summary(lm_model)$r.squared, 2)
+    # Extract coefficients and standard errors
+    coefficients <- coef(lm_model)
+    se <- summary(lm_model)$coefficients[, "Std. Error"]
+    # Extract specific standard errors
+    Slope_SE <- se["X"]
+    Intercept_SE <- se["(Intercept)"]
     
     # Create a new row with statistics
     new_row <- data.frame(
@@ -180,7 +188,9 @@ for (i in sitelist) {
       Iteration = i,  # You may want to specify an iteration number here
       Slope = coef_slope,
       Intercept = coef_intercept,
-      RSquared = r_squared
+      RSquared = r_squared,
+      Slope_SE = round(se["X"], 2),
+      Intercept_SE = round(se["(Intercept)"], 2)
     )
     
     # Append the row to the statistics_table
@@ -195,6 +205,9 @@ for (i in sitelist) {
   my_formula <- as.formula(formula_text)
   # Create R-squared text
   r_squared_text <- paste("R-squared =", r_squared)
+  # Create standard error text
+  std_error_text_slope <- paste("Standard Error Slope =", se["X"])
+  std_error_text_intercept <- paste("Standard Error Intercept =", se["(Intercept)"])
   
   # Append the row to the statistics_table
   statistics_table <- rbind(statistics_table, new_row)
@@ -236,7 +249,27 @@ for (i in sitelist) {
       vjust = 1,
       color = "forestgreen",
       size = 4
-    )
+    ) +
+  annotate(
+    "text", 
+    x = min(merged_df$Flow), 
+    y = max(merged_df$result) - 1000, 
+    label = std_error_text_slope, 
+    hjust = 0, 
+    vjust = 1,
+    color = "brown",
+    size = 4
+    ) +
+  annotate(
+    "text", 
+    x = min(merged_df$Flow), 
+    y = max(merged_df$result) - 1400, 
+    label = std_error_text_intercept, 
+    hjust = 0, 
+    vjust = 1,
+    color = "deeppink4",
+    size = 4
+  )
     # Print and close the plot
   print(Regression)
   dev.off()  # Close the PNG device
