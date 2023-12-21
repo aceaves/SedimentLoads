@@ -108,21 +108,6 @@ merged$Measurement2[merged$Measurement2 == 'Suspended Sediment Concentration'] <
 merged$Measurement2[merged$Measurement2 == 'Suspended Solids'] <- "SS"
 merged1 <- filter(merged, SampleTaken > "2018-06-30" & Measurement2 == 'SSC')
 
-###################################
-
-# Convert time/date to as.POSIXct 
-Flow$SampleTaken <- as.POSIXct(Flow$SampleTaken , format = "%Y-%m-%d %H:%M:%S")
-# Convert flow column to numeric
-Flow$Flow <- as.numeric(Flow$Flow) 
-# Take natural log of flow data
-Flow$Flowlog <- log(Flow$Flow)  
-# Predict ln (concentration) based on equation calculated in the Sedrate software
-#Flow$concLog <- (Flow$Flowlog*1.089-7.004) 
-Flow$concLog <- (Flow$Flowlog*1.089-6.5)
-# Apply bias correction factor (calculated in Sedrate)
-# Original: Flow$predConc <- exp(Flow$concLog)*1.3
-
-
 ###############################################################################
 
 #Set working directory for outputs and customise as needed (date etc)
@@ -155,39 +140,67 @@ print(subval_regression)
 
 ##########################################
 
-# Merge datasets based on the 'site' column
-measure2 <- merge(Flow, subval_regression, by = "SiteName")
-head(measure2, 10)
+# Convert time/date to as.POSIXct 
+Flow$SampleTaken <- as.POSIXct(Flow$SampleTaken , format = "%Y-%m-%d %H:%M:%S")
+# Convert flow column to numeric
+Flow$Flow <- as.numeric(Flow$Flow) 
+# Take natural log of flow data
+Flow$Flowlog <- log(Flow$Flow)  
+# Predict ln (concentration) based on equation calculated in the Sedrate software
+Flow$concLog <- (Flow$Flowlog*1.089-7.004) 
+#Flow$concLog <- (Flow$Flowlog*1.089-6.5)
+# Apply bias correction factor (calculated in Sedrate)
+# Original: Flow$predConc <- exp(Flow$concLog)*1.3
 
 #Loop 2 through sites-----------------------------------------------------------
 for (i in sitelist) { 
-  
-  measure1 <- filter(measure2, SiteName == i)
-  merged2 <- filter(merged, Site == i)
-  merged3 <- filter(merged1, Site == i)
-  head(measure1, 10)
-  
-  # Apply unique slope and intercept 
-  #measure1$predConc <- exp(measure1$concLog) / measure1$Slope + measure1$Intercept
-  measure1$predConc <- exp(measure1$concLog) / measure1$Slope
-  
+
+  # Assuming 'SiteName' is the key for the lookup
+  lookup_site <- i  # Replace with the actual site name you are interested in
+
+  # Perform lookup to get the corresponding value
+  lookup_result <- subval_regression$Slope[subval_regression$SiteName == lookup_site]
+
+  # Check if the lookup was successful
+  if (length(lookup_result) > 0) {
+    # Use the looked-up value in your calculation
+    Flow$predConc <- exp(Flow$concLog) / lookup_result
+  } else {
+    cat("Site not found in the lookup table:", lookup_site, "\n")
+  }
+
+
+  #Flow$predConc <- exp(Flow$concLog)/2.32+236
   # Convert concentration to load and mg to T
-  measure1$load <- (measure1$predConc * measure1$Flow * 900) / 1000000000 
+  Flow$load <- (Flow$predConc*Flow$Flow*900)/1000000000 
 
   # Remove any N/As from the dataset 
-  measure1 <- measure1 %>%
+  measure <- Flow %>%
     mutate(across(where(is.numeric), ~ ifelse(is.na(.), 0, .)))
+
   # Accumulate load
-  measure1 <- within(measure1, AccumLoad <- Reduce("+", load, accumulate = TRUE)/100)
-  measure1$SummaryAllSites <- measure1$AccumLoad
-  
+  measure <- within(measure, AccumLoad <- Reduce("+", load, accumulate = TRUE)/100)
+  measure$SummaryAllSites <- measure$AccumLoad
+
   # Group the data by Site and apply the cumsum function within each group
-#  measure2 <- measure2 %>%
-#    group_by(SiteName) %>%
-#    mutate(AccumLoadSite = cumsum(load)/100)
+  measure <- measure %>%
+    group_by(SiteName) %>%
+    mutate(AccumLoadSite = cumsum(load)/100)
 
-#Good from here on
 
+################################################################################
+#Exports:
+
+
+  
+  measure1 <- filter(measure, SiteName == i)
+  merged2 <- filter(merged, Site == i)
+  merged3 <- filter(merged1, Site == i)
+  # Get summary statistics for the current iteration for load
+  measure1 <- within(measure1, AccumLoad1 <- Reduce("+", load, accumulate = TRUE)/100)
+  measure1$summary1 <- measure1$AccumLoad1
+  summary_stats <- summary(measure1$summary1)
+  
   # Create a new row with statistics
   new_row <- data.frame(
     SiteName = i,
@@ -204,7 +217,7 @@ for (i in sitelist) {
   # Add the new row to the statistics table
   statistics_table_ratings <- rbind(statistics_table_ratings, new_row)
   print(summary_stats)
- 
+  
   ###############################
   #Export Flowplot to a PNG file
   filename <- paste("FLOW_", i, ".png", sep="")
@@ -214,7 +227,7 @@ for (i in sitelist) {
     geom_path(aes(x = SampleTaken, y = Flow/1000), colour = 'blue', size = 0.4) +
     scale_x_datetime(date_labels = "%b %Y", date_breaks = "3 months", name = "Date") +
     scale_y_continuous(labels = comma_format(), name = "Flow (m3/s)")
-
+  
   print(Flowplot)
   dev.off()
   
@@ -229,7 +242,7 @@ for (i in sitelist) {
     scale_color_manual(values = c("#009E73",'coral1'), name = "Sample Type")+
     scale_x_datetime(date_labels = "%b %Y", date_breaks = "3 months", name = "Date") +
     scale_y_continuous(labels = comma_format(),  name = "Flow (m3/s)")
-
+  
   print(SSC)
   dev.off()
   
@@ -240,7 +253,8 @@ for (i in sitelist) {
   
   CUMSSC <- ggplot(data = measure1) +
     geom_line(data = measure1, aes(x = SampleTaken, y = predConc), colour = 'darkgoldenrod') +
-    geom_line(data = measure1, aes(x = SampleTaken, y = AccumLoad*0.1), colour = 'red')+
+    geom_line(data = measure1, aes(x = SampleTaken, y = summary1*0.1), colour = 'red')+
+    scale_x_datetime(date_labels = "%b %Y", date_breaks = "3 months", name = "Date") +
     scale_y_continuous(name = "SSC (mg/l)",expand = c(0,0,0.2,2), sec.axis = sec_axis(~./0.1, name = "Cumulative sediment (T)"))
   
   print(CUMSSC)
@@ -254,17 +268,19 @@ for (i in sitelist) {
   CUMSSC2 <- ggplot(data = measure1) +
     geom_line(data = measure1, aes(x = SampleTaken, y = predConc), colour = 'darkgoldenrod') +
     geom_point(data = merged3, aes(x = SampleTaken, y = Conc, color = Measurement2),colour = 'coral1', size = 1.5)+
-    geom_line(data = measure1, aes(x = SampleTaken, y = AccumLoad*1), colour = 'red')+
+    geom_line(data = measure1, aes(x = SampleTaken, y = summary1*1), colour = 'red')+
+    scale_x_datetime(date_labels = "%b %Y", date_breaks = "3 months", name = "Date") +
     scale_y_continuous(name = "SSC (mg/l)",expand = c(0,0,0.2,2), sec.axis = sec_axis(~./1, name = "Cumulative sediment (T)"))
   
   print(CUMSSC2)
   dev.off()
   
 }
-# End Loop 2 -------------------------------------------------------------------
+
+#Loop 2 completed---------------------------------------------------------------
 
 #Print column names
-colnames(measure2)
+colnames(measure)
 
 # Print the resulting table
 print(statistics_table_ratings)
@@ -272,7 +288,35 @@ print(statistics_table_ratings)
 write.csv(statistics_table_ratings, file = "statistics_table_ratings.csv", row.names = FALSE)
 
 #Subset output for speed
-measure2022_23 <- subset(measure2, select = -c(Flowlog, concLog, AccumLoad))
+measure2022_23 <- subset(measure, select = -c(Flowlog, concLog, AccumLoad))
 write.csv(measure2022_23, file = "measure2022_23.csv", row.names = FALSE)
 
 ################################################################################
+
+
+
+
+
+
+
+
+# Merge datasets based on the 'site' column
+measure2 <- merge(Flow, subval_regression, by = "SiteName")
+head(measure2, 10)
+
+#Loop 2 through sites-----------------------------------------------------------
+for (i in sitelist) { 
+  
+  measure1 <- filter(measure2, SiteName == i)
+  merged2 <- filter(merged, Site == i)
+  merged3 <- filter(merged1, Site == i)
+  head(measure1, 10)
+  
+  # Apply unique slope and intercept 
+  #measure1$predConc <- exp(measure1$concLog) / measure1$Slope + measure1$Intercept
+  measure1$predConc <- exp(measure1$concLog) / measure1$Slope
+  
+}
+# End Loop 2 -------------------------------------------------------------------
+
+
