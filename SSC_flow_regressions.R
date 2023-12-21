@@ -114,7 +114,7 @@ setwd('./Outputs/Regressions')
 
 # Create an empty data frame to store statistics
 statistics_table <- data.frame(
-  Site = character(),
+  SiteName = character(),
   Iteration = integer(),
   Slope = numeric(),
   Intercept = numeric(),
@@ -176,7 +176,7 @@ for (i in sitelist) {
     
     # Create a new row with statistics
     new_row <- data.frame(
-      Site = site_name,
+      SiteName = site_name,
       Iteration = i,  # You may want to specify an iteration number here
       Slope = coef_slope,
       Intercept = coef_intercept,
@@ -245,7 +245,7 @@ for (i in sitelist) {
 #End loop ----------------------------------------------------------------------
 
 #Filter out duplicates
-statistics_table <- distinct(statistics_table, Site, .keep_all = TRUE)
+statistics_table <- distinct(statistics_table, SiteName, .keep_all = TRUE)
 # Print the resulting statistical data frame
 print(statistics_table)
 # Specify the Excel file path and name
