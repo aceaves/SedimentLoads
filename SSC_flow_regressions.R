@@ -38,30 +38,29 @@ date2 <- "01-December-2023 00:00:00"
 #Measurements/data that we want to pull from the Hilltop file 
 measurement <- c(	'Suspended Solids [Suspended Solids]','Suspended Sediment Concentration', "Flow")
 
-#Loop 1 through sites-----------------------------------------------------------
+#Loop 1 through sites to get data ----------------------------------------------
 name <- data.frame(sitelist)
 name$Sites <- as.character(name$sitelist)
 
 site_no <- length(sitelist)
 site_id <- sitelist
 
-method <- ""
-interval <- ""
+melt <- NULL  # Initialize an empty data frame to store the results
 
-for(j in 1:site_no){
-  Multiple_sites <- GetData(dfile, site_id[j] ,measurement, date1, date2) 
-  # You will struggle to use this format in most packages 
-  # do this to make it more useful
-  Multiple_sites_id <- do.call(rbind, lapply(Multiple_sites, function(x) cbind(zoo::fortify.zoo(x),
-                                                                               SiteName = attr(x, 'SiteName'), Measurement = attr(x, 'Measurement')))) %>% 
-    dplyr::rename(zoodata='x') %>% 
-    dplyr::rename(Site=SiteName)
-  
-  if(j==1){
-    melt <- Multiple_sites_id } 
-  else
-  {melt<- rbind(melt, Multiple_sites_id)
-  }
+for (j in 1:site_no) {
+  tryCatch({
+    Multiple_sites <- GetData(dfile, site_id[j], measurement, date1, date2) 
+    Multiple_sites_id <- do.call(rbind, lapply(Multiple_sites, function(x) cbind(zoo::fortify.zoo(x),
+                                                                                 SiteName = attr(x, 'SiteName'), Measurement = attr(x, 'Measurement')))) %>% 
+      dplyr::rename(zoodata='x') %>% 
+      dplyr::rename(Site=SiteName)
+    
+    melt <- bind_rows(melt, Multiple_sites_id)
+  }, error = function(e) {
+    cat(paste("Error fetching data for site:", site_id[j], ". Skipping this site.\n"))
+    return(NULL)  # Return NULL inside the tryCatch block
+  })
+  next  # Skip to the next iteration outside the tryCatch block
 }
 # End loop ---------------------------------------------------------------------
 
@@ -93,7 +92,6 @@ Flow$SampleTaken <-as.character(Flow$SampleTaken)
 
 merged <- merge(Flow, SSC, by = "SampleTaken" )
 merged <- merged[,c(1,2,3,4,5,7)]
-
 
 colnames(merged) <- c('SampleTaken','Site','Measurement', 'Flow', 'Conc', 'Measurement2')
 merged$SampleTaken <- as.POSIXct(merged$SampleTaken, format = "%Y-%m-%d %H:%M:%S")
@@ -179,8 +177,8 @@ for (i in sitelist) {
     coefficients <- coef(lm_model)
     se <- summary(lm_model)$coefficients[, "Std. Error"]
     # Extract specific standard errors
-    Slope_SE <- se["X"]
-    Intercept_SE <- se["(Intercept)"]
+    Slope_SE <- round(se["Flow"], 2)
+    Intercept_SE <- round(se["(Intercept)"], 2)
     
     # Create a new row with statistics
     new_row <- data.frame(
@@ -189,16 +187,16 @@ for (i in sitelist) {
       Slope = coef_slope,
       Intercept = coef_intercept,
       RSquared = r_squared,
-      Slope_SE = round(se["X"], 2),
-      Intercept_SE = round(se["(Intercept)"], 2)
+      Slope_SE = se["Flow"],
+      Intercept_SE = se["(Intercept)"]
     )
-    
+
     # Append the row to the statistics_table
     statistics_table <- rbind(statistics_table, new_row)
   } else {
     cat("Skipping site:", site_name, "due to missing values\n")
   }
-  
+
   # Define the formula text
   formula_text <- paste(coef_intercept, "~", coef_slope, "* x")
   # Convert formula_text to a formula
@@ -206,18 +204,18 @@ for (i in sitelist) {
   # Create R-squared text
   r_squared_text <- paste("R-squared =", r_squared)
   # Create standard error text
-  std_error_text_slope <- paste("Standard Error Slope =", se["X"])
+  std_error_text_slope <- paste("Standard Error Slope =", se["Flow"])
   std_error_text_intercept <- paste("Standard Error Intercept =", se["(Intercept)"])
   
   # Append the row to the statistics_table
   statistics_table <- rbind(statistics_table, new_row)
-
+  
     ######     Export plots     ##############
   
   # Export Sample SSC plot to a PNG file
   filename <- paste("SSC_Flow_Regression_", site_name, ".png", sep="")
   png(filename, width=1200, height=800)
-
+  
   # Create a ggplot2 plot with a scatterplot and regression line
   Regression <- ggplot(merged_df, aes(x = Flow, y = result)) +
     geom_point(color = "Black", size = 2, shape = 19, stroke = 1) +
@@ -250,27 +248,27 @@ for (i in sitelist) {
       color = "forestgreen",
       size = 4
     ) +
-  annotate(
-    "text", 
-    x = min(merged_df$Flow), 
-    y = max(merged_df$result) - 1000, 
-    label = std_error_text_slope, 
-    hjust = 0, 
-    vjust = 1,
-    color = "brown",
-    size = 4
+    annotate(
+      "text", 
+      x = min(merged_df$Flow), 
+      y = max(merged_df$result) - 1000, 
+      label = std_error_text_slope, 
+      hjust = 0, 
+      vjust = 1,
+      color = "brown",
+      size = 4
     ) +
-  annotate(
-    "text", 
-    x = min(merged_df$Flow), 
-    y = max(merged_df$result) - 1400, 
-    label = std_error_text_intercept, 
-    hjust = 0, 
-    vjust = 1,
-    color = "deeppink4",
-    size = 4
-  )
-    # Print and close the plot
+    annotate(
+      "text", 
+      x = min(merged_df$Flow), 
+      y = max(merged_df$result) - 1400, 
+      label = std_error_text_intercept, 
+      hjust = 0, 
+      vjust = 1,
+      color = "deeppink4",
+      size = 4
+    )
+  # Print and close the plot
   print(Regression)
   dev.off()  # Close the PNG device
   
