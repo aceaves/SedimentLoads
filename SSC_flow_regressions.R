@@ -19,6 +19,8 @@ library(dplyr)
 library(writexl)
 library(zoo)
 library(xts)
+library(ggdist)
+library(ggtext)
 
 #Get flow data #################################################################
 
@@ -108,7 +110,7 @@ head(subset_merged1, 10)
 ####    Output    ##############################################################
 
 #Set working directory for outputs
-setwd('./Outputs/Regressions')
+setwd('I:/306 HCE Project/R_analysis/Rating curves/RatingCurvesGit/Outputs/Regressions')
 
 # Create an empty data frame to store statistics
 statistics_table <- data.frame(
@@ -124,7 +126,7 @@ statistics_table <- data.frame(
 
 #Loop 2 through sites-----------------------------------------------------------
 for (i in sitelist) { 
-
+  
   ###  Get puddle SSC data  ####################################################
   
   MyData <- getPuddleData(
@@ -132,14 +134,13 @@ for (i in sitelist) {
     fromDate = "01-02-2018",
     toDate = "01-12-2023",
     catchments = "",
-#   sites = "Aropaoanui River at Aropaoanui",
     sites = i,
     projects = "340204",
     measurements = "Suspended Sediment Concentration",
     detids = ""
   )
   head(MyData, 10)
-
+  
   #Remove unnecessary columns and tidy time
   subset_MyData <- select(MyData, Time, Site, result, DetID)
   subset_MyData <- subset_MyData %>% rename(SampleTaken = Time)
@@ -190,13 +191,13 @@ for (i in sitelist) {
       Slope_SE = se["Flow"],
       Intercept_SE = se["(Intercept)"]
     )
-
+    
     # Append the row to the statistics_table
     statistics_table <- rbind(statistics_table, new_row)
   } else {
     cat("Skipping site:", site_name, "due to missing values\n")
   }
-
+  
   # Define the formula text
   formula_text <- paste(coef_intercept, "~", coef_slope, "* x")
   # Convert formula_text to a formula
@@ -204,8 +205,8 @@ for (i in sitelist) {
   # Create R-squared text
   r_squared_text <- paste("R-squared =", r_squared)
   # Create standard error text
-  std_error_text_slope <- paste("Standard Error Slope =", se["Flow"])
-  std_error_text_intercept <- paste("Standard Error Intercept =", se["(Intercept)"])
+  std_error_text_slope <- paste("Standard Error Slope =", Slope_SE)
+  std_error_text_intercept <- paste("Standard Error Intercept =", Intercept_SE)
   
   # Append the row to the statistics_table
   statistics_table <- rbind(statistics_table, new_row)
@@ -226,53 +227,49 @@ for (i in sitelist) {
       x = expression("Flow (m"^"3"/"s)"),
       y = "SSC (mg/l)"
     ) +
-    theme_minimal() +  # Optional: Customize the theme if needed
-    theme(legend.position = "none") +  # Optional: Remove legend if not needed
-    annotate(
-      "text", 
-      x = min(merged_df$Flow), 
-      y = max(merged_df$result), 
-      label = formula_text, 
-      hjust = 0, 
-      vjust = 1,
-      color = "blue",
-      size = 4
-    ) +
-    annotate(
-      "text", 
-      x = min(merged_df$Flow), 
-      y = max(merged_df$result) - 600, 
-      label = r_squared_text, 
-      hjust = 0, 
-      vjust = 1,
-      color = "forestgreen",
-      size = 4
-    ) +
-    annotate(
-      "text", 
-      x = min(merged_df$Flow), 
-      y = max(merged_df$result) - 1000, 
-      label = std_error_text_slope, 
-      hjust = 0, 
-      vjust = 1,
-      color = "brown",
-      size = 4
-    ) +
-    annotate(
-      "text", 
-      x = min(merged_df$Flow), 
-      y = max(merged_df$result) - 1400, 
-      label = std_error_text_intercept, 
-      hjust = 0, 
-      vjust = 1,
-      color = "deeppink4",
-      size = 4
-    )
-  # Print and close the plot
+    theme_minimal() +
+    theme(legend.position = "none")
+  
+  # Extract y-axis range
+  y_range <- ggplot_build(Regression)$layout$panel_scales_y[[1]]$range$range
+  
+  # Define annotations
+  annotations <- list(
+    list(label = formula_text, color = "blue"),
+    list(label = r_squared_text, color = "forestgreen"),
+    list(label = std_error_text_slope, color = "brown"),
+    list(label = std_error_text_intercept, color = "deeppink4")
+  )
+  
+  # Add annotations using geom_rect()
+  for (i in seq_along(annotations)) {
+    annotation <- annotations[[i]]
+    y_pos <- y_range[2] - (i * (y_range[2] - y_range[1]) / length(annotations))
+    
+    Regression <- Regression +
+      geom_rect(
+        data = data.frame(x = c(min(merged_df$Flow), max(merged_df$Flow)), y = c(y_pos, y_pos)),
+        aes(xmin = x[1], xmax = x[2], ymin = y[1], ymax = y[2]),
+        fill = "white",
+        color = "white",
+        inherit.aes = FALSE
+      ) +
+      annotate(
+        "text",
+        x = min(merged_df$Flow),
+        y = y_pos,
+        label = annotation$label,
+        hjust = 0,
+        vjust = 0.5,
+        color = annotation$color,
+        size = 4
+      )
+
   print(Regression)
   dev.off()  # Close the PNG device
-  
+  }
 }
+
 #End loop ----------------------------------------------------------------------
 
 #Filter out duplicates
