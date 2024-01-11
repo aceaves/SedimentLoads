@@ -30,7 +30,6 @@ dfile <- HilltopData("I:/306 HCE Project/Sites/ISCO_Processing.dsn")
 
 # Get measurement list for respective sites 
 sitelist <- SiteList(dfile, "")
-#measurementlist <- Hilltop::MeasurementList(dfile, sitelist)
 Hilltop::SiteList(dfile)
 
 # Date range. 
@@ -223,9 +222,11 @@ for (i in sitelist) {
     geom_point(color = "darkgoldenrod", size = 1, shape = 19, stroke = 1) +
     geom_smooth(method = "lm", color = "red", se = FALSE, formula = y ~ x) +
     labs(
-      title = paste("Regression Plot:", site_name, " (", start_date, " to ", end_date, ")"),
-      x = expression("Flow (m"^"3"/"s)"),
-      y = "SSC (mg/l)"
+      title = paste(
+        "Regression Plot:", 
+        site_name, 
+        "\n (", start_date, " to ", end_date, ")"
+      )
     ) +
     theme_minimal() +
     theme(legend.position = "none")
@@ -235,39 +236,31 @@ for (i in sitelist) {
   
   # Define annotations
   annotations <- list(
-    list(label = formula_text, color = "blue"),
-    list(label = r_squared_text, color = "forestgreen"),
-    list(label = std_error_text_slope, color = "brown"),
-    list(label = std_error_text_intercept, color = "deeppink4")
+    list(label = formula_text, color = "blue", vjust = 0.8),
+    list(label = r_squared_text, color = "forestgreen", vjust = 0.7),
+    list(label = std_error_text_slope, color = "brown", vjust = 0.6),
+    list(label = std_error_text_intercept, color = "deeppink4", vjust = 0.5)
   )
   
-  # Add annotations using geom_rect()
+  # Add annotations using geom_text()
   for (i in seq_along(annotations)) {
     annotation <- annotations[[i]]
-    y_pos <- y_range[2] - (i * (y_range[2] - y_range[1]) / length(annotations))
+    y_pos <- y_range[2] - (i * (y_range[2] - y_range[1]) / (length(annotations) + 1))
     
     Regression <- Regression +
-      geom_rect(
-        data = data.frame(x = c(min(merged_df$Flow), max(merged_df$Flow)), y = c(y_pos, y_pos)),
-        aes(xmin = x[1], xmax = x[2], ymin = y[1], ymax = y[2]),
-        fill = "white",
-        color = "white",
-        inherit.aes = FALSE
-      ) +
       annotate(
         "text",
         x = min(merged_df$Flow),
         y = y_pos,
         label = annotation$label,
         hjust = 0,
-        vjust = 0.5,
+        vjust = annotation$vjust,
         color = annotation$color,
         size = 4
       )
-
+  }
   print(Regression)
   dev.off()  # Close the PNG device
-  }
 }
 
 #End loop ----------------------------------------------------------------------
