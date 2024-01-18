@@ -15,6 +15,7 @@ library(taskscheduleR)
 library(openxlsx)
 library(zoo)
 library(xts)
+library(readxl)
 
 ################################################################################
 #Set up task scheduler
@@ -111,7 +112,7 @@ merged1 <- filter(merged, SampleTaken > "2018-06-30" & Measurement2 == 'SSC')
 ###############################################################################
 
 #Set working directory for outputs and customise as needed (date etc)
-setwd('./Outputs')
+setwd('I:/306 HCE Project/R_analysis/Rating curves/RatingCurvesGit/Outputs')
 
 # Create an empty data frame to store statistics or empty any existing data in the dataframe
 statistics_table_ratings <- data.frame(
@@ -133,8 +134,10 @@ regression <- read.xlsx(regression_output)
 regression$Slope <- as.numeric(regression$Slope)
 regression$Intercept <- as.numeric(regression$Intercept)
 regression$RSquared <- as.numeric(regression$RSquared)
+regression$Slope_SE <- as.numeric(regression$Slope_SE)
+regression$Intercept_SE <- as.numeric(regression$Intercept_SE)
 
-subval_regression <- select(regression, SiteName, Slope, Intercept, RSquared)
+subval_regression <- select(regression, SiteName, Slope, Intercept, RSquared, Slope_SE, Intercept_SE)
 # Print the data
 print(subval_regression)
 
@@ -149,7 +152,7 @@ Flow$Flowlog <- log(Flow$Flow)
 # Predict ln (concentration) based on equation calculated in the Sedrate software
 #Flow$concLog <- (Flow$Flowlog*1.089-7.004) 
 #Flow$concLog <- (Flow$Flowlog*1.089-6.5) #Calibrated to Tukituki
-Flow$concLog <- (Flow$Flowlog*1.089) #Calibrated to Aropaoanui
+#Flow$concLog <- (Flow$Flowlog*1.089) #Calibrated to Aropaoanui
 Flow$concLog <- (Flow$Flowlog) #Calibrate using regression function below.
 # Apply bias correction factor (calculated in Sedrate)
 # Original: Flow$predConc <- exp(Flow$concLog)*1.3
@@ -161,15 +164,17 @@ for (i in sitelist) {
   lookup_site <- i  # Replace with the actual site name you are interested in
 
   # Perform lookup to get the corresponding values (Slope and Intercept)
-  lookup_result <- subval_regression[subval_regression$SiteName == lookup_site, c("Slope", "Intercept")]
+  lookup_result <- subval_regression[subval_regression$SiteName == lookup_site, c("Slope", "Intercept", "Slope_SE")]
   
   # Check if the lookup was successful
   if (nrow(lookup_result) > 0) {
     # Use the looked-up values in your calculation
     slope_value <- lookup_result$Slope
     intercept_value <- lookup_result$Intercept
+    slope_SE_value <- exp(lookup_result$Slope_SE)
     
-    Flow$predConc <- exp(Flow$concLog) / slope_value + intercept_value
+    Flow$concLog <- Flow$Flowlog * (slope_value) + intercept_value
+    Flow$predConc <- (log(Flow$concLog))*slope_SE_value
   } else {
     cat("Site not found in the lookup table:", lookup_site, "\n")
   }
@@ -196,8 +201,6 @@ for (i in sitelist) {
 ################################################################################
 #Exports:
 
-
-  
   measure1 <- filter(measure, SiteName == i)
   merged2 <- filter(merged, Site == i)
   merged3 <- filter(merged1, Site == i)
@@ -225,31 +228,31 @@ for (i in sitelist) {
   
   ###############################
   #Export Flowplot to a PNG file
-  filename <- paste("FLOW_", i, ".png", sep="")
-  png(filename, width=1200, height=800)
+#  filename <- paste("FLOW_", i, ".png", sep="")
+#  png(filename, width=1200, height=800)
   
-  Flowplot <- ggplot(data = measure1) +
-    geom_path(aes(x = SampleTaken, y = Flow/1000), colour = 'blue', size = 0.4) +
-    scale_x_datetime(date_labels = "%b %Y", date_breaks = "3 months", name = "Date") +
-    scale_y_continuous(labels = comma_format(), name = "Flow (m3/s)")
+#  Flowplot <- ggplot(data = measure1) +
+#    geom_path(aes(x = SampleTaken, y = Flow/1000), colour = 'blue', size = 0.4) + 
+#    scale_x_datetime(date_labels = "%b %Y", date_breaks = "3 months", name = "Date") +
+#    scale_y_continuous(labels = comma_format(), name = "Flow (m3/s)")
   
-  print(Flowplot)
-  dev.off()
+#  print(Flowplot)
+#  dev.off()
   
   ###############################
   # Export Sample SSC plot to a PNG file
-  filename <- paste("SSC_", i, ".png", sep="")
-  png(filename, width=1200, height=800)
+#  filename <- paste("SSC_", i, ".png", sep="")
+#  png(filename, width=1200, height=800)
   
-  SSC <- ggplot(data = measure1) +
-    geom_path(data = measure1, aes(x = SampleTaken, y = Flow/1000), colour = "blue", size = 0.4)+
-    geom_point(data = merged2, aes(x = SampleTaken, y = Flow/1000, color = Measurement2), size = 1.5)+
-    scale_color_manual(values = c("#009E73",'coral1'), name = "Sample Type")+
-    scale_x_datetime(date_labels = "%b %Y", date_breaks = "3 months", name = "Date") +
-    scale_y_continuous(labels = comma_format(),  name = "Flow (m3/s)")
+#  SSC <- ggplot(data = measure1) +
+#    geom_path(data = measure1, aes(x = SampleTaken, y = Flow/1000), colour = "blue", size = 0.4)+
+#    geom_point(data = merged2, aes(x = SampleTaken, y = Flow/1000, color = Measurement2), size = 1.5)+
+#    scale_color_manual(values = c("#009E73",'coral1'), name = "Sample Type")+
+#    scale_x_datetime(date_labels = "%b %Y", date_breaks = "3 months", name = "Date") +
+#    scale_y_continuous(labels = comma_format(),  name = "Flow (m3/s)")
   
-  print(SSC)
-  dev.off()
+#  print(SSC)
+#  dev.off()
   
   ################################
   # Export Cumulative Sediment1 plot to a PNG file
@@ -267,18 +270,18 @@ for (i in sitelist) {
   
   ################################
   # Export Cumulative Sediment2 plot to a PNG file
-  filename <- paste("CUMSSC2_", i, ".png", sep="")
-  png(filename, width=1200, height=800)
+#  filename <- paste("CUMSSC2_", i, ".png", sep="")
+#  png(filename, width=1200, height=800)
   
-  CUMSSC2 <- ggplot(data = measure1) +
-    geom_line(data = measure1, aes(x = SampleTaken, y = predConc), colour = 'darkgoldenrod') +
-    geom_point(data = merged3, aes(x = SampleTaken, y = Conc, color = Measurement2),colour = 'coral1', size = 1.5)+
-    geom_line(data = measure1, aes(x = SampleTaken, y = summary1*1), colour = 'red')+
-    scale_x_datetime(date_labels = "%b %Y", date_breaks = "3 months", name = "Date") +
-    scale_y_continuous(name = "SSC (mg/l)",expand = c(0,0,0.2,2), sec.axis = sec_axis(~./1, name = "Cumulative sediment (T)"))
+#  CUMSSC2 <- ggplot(data = measure1) +
+#    geom_line(data = measure1, aes(x = SampleTaken, y = predConc), colour = 'darkgoldenrod') +
+#    geom_point(data = merged3, aes(x = SampleTaken, y = Conc, color = Measurement2),colour = 'coral1', size = 1.5)+
+#    geom_line(data = measure1, aes(x = SampleTaken, y = summary1*1), colour = 'red')+
+#    scale_x_datetime(date_labels = "%b %Y", date_breaks = "3 months", name = "Date") +
+#    scale_y_continuous(name = "SSC (mg/l)",expand = c(0,0,0.2,2), sec.axis = sec_axis(~./1, name = "Cumulative sediment (T)"))
   
-  print(CUMSSC2)
-  dev.off()
+#  print(CUMSSC2)
+#  dev.off()
   
 }
 
@@ -291,8 +294,8 @@ print(statistics_table_ratings)
 write.csv(statistics_table_ratings, file = "statistics_table_ratings.csv", row.names = FALSE)
 
 #Subset output for speed
-measure2022_23 <- subset(measure, select = -c(Flowlog, concLog, AccumLoad))
-write.csv(measure2022_23, file = "measure2022_23.csv", row.names = FALSE)
+measure <- subset(measure, select = -c(Flowlog, concLog, AccumLoad))
+write.csv(measure, file = "measure.csv", row.names = FALSE)
 
 ################################################################################
 

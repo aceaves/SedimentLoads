@@ -130,7 +130,7 @@ for (i in sitelist) {
   
   MyData <- getPuddleData(
     query_option = "fullPuddleHilltop",
-    fromDate = "01-02-2018",
+    fromDate = "01-01-2018",
     toDate = "01-12-2023",
     catchments = "",
     sites = i,
@@ -226,7 +226,9 @@ for (i in sitelist) {
         "Regression Plot:", 
         site_name, 
         "\n (", start_date, " to ", end_date, ")"
-      )
+      ),
+      x = expression("Flow (m"^"3"/"s)"),
+      y = "SSC (mg/l)"
     ) +
     theme_minimal() +
     theme(legend.position = "none")
@@ -236,10 +238,10 @@ for (i in sitelist) {
   
   # Define annotations
   annotations <- list(
-    list(label = formula_text, color = "blue", vjust = 0.8),
-    list(label = r_squared_text, color = "forestgreen", vjust = 0.7),
-    list(label = std_error_text_slope, color = "brown", vjust = 0.6),
-    list(label = std_error_text_intercept, color = "deeppink4", vjust = 0.5)
+    list(label = formula_text, color = "blue", vjust = 0.9),
+    list(label = r_squared_text, color = "forestgreen", vjust = 0.8),
+    list(label = std_error_text_slope, color = "brown", vjust = 0.7),
+    list(label = std_error_text_intercept, color = "deeppink4", vjust = 0.6)
   )
   
   # Add annotations using geom_text()
@@ -253,8 +255,8 @@ for (i in sitelist) {
         x = min(merged_df$Flow),
         y = y_pos,
         label = annotation$label,
-        hjust = 0,
-        vjust = annotation$vjust,
+        hjust = 0,    # Adjusted to align to the left
+        vjust = annotation$vjust,     # Adjusted vjust based on annotation
         color = annotation$color,
         size = 4
       )
@@ -265,14 +267,18 @@ for (i in sitelist) {
 
 #End loop ----------------------------------------------------------------------
 
+######## Output Tables #########
+
 #Filter out duplicates
 statistics_table <- distinct(statistics_table, SiteName, .keep_all = TRUE)
 # Print the resulting statistical data frame
 print(statistics_table)
 # Specify the Excel file path and name
 excel_file <- "I:/306 HCE Project/R_analysis/Rating curves/RatingCurvesGit/Outputs/Regressions/statistics_output.xlsx"
+#excel_file2 <- "I:/306 HCE Project/R_analysis/Rating curves/RatingCurvesGit/Outputs/Regressions/merged_df.xlsx"
 # Write the data frame to an Excel file
 write_xlsx(statistics_table, excel_file)
-
+# Write the merged dataframe to an Excel file for use in GenDist:
+#write_xlsx(merged_df, excel_file2)
 
 ################################################################################

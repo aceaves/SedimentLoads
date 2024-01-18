@@ -11,7 +11,8 @@ library(scales)
 library(htmltools)
 library(plotly)
 
-df <- read.csv("I:/306 HCE Project/R_analysis/Rating curves/RatingCurvesGit/Outputs/measure.csv")
+setwd("I:/306 HCE Project/R_analysis/Rating curves/RatingCurvesGit/app")
+df <- read.csv("./measure.csv")
 df$SampleTaken<-as.POSIXct(df$SampleTaken, format="%Y-%m-%d %H:%M:%S")
 
 ################################################################################
@@ -89,10 +90,10 @@ server <- function(input, output) {
 
 ##### Turn on ONE of the options below:
 #For localhost:
-#shinyApp(ui, server)
+shinyApp(ui, server)
 
 #For port forwarding:
-shinyApp(ui, server, options = list(port = 3093, host = "192.168.5.108"))
+#shinyApp(ui, server, options = list(port = 3093, host = "192.168.5.108"))
 
 
 #runApp("app",host="0.0.0.0",port=3000)
