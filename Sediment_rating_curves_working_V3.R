@@ -46,7 +46,7 @@ sitelist <- SiteList(dfile, "")
 Hilltop::SiteList(dfile)
 
 # Date range. 
-date1 <- "01-February-2022 00:00:00"
+date1 <- "01-February-2018 00:00:00"
 date2 <- "01-February-2023 00:00:00"
 
 #Measurements/data that we want to pull from the Hilltop file 
@@ -148,7 +148,9 @@ Flow$SampleTaken <- as.POSIXct(Flow$SampleTaken , format = "%Y-%m-%d %H:%M:%S")
 # Convert flow column to numeric
 Flow$Flow <- as.numeric(Flow$Flow) 
 # Take natural log of flow data
-Flow$Flowlog <- log(Flow$Flow)  
+#Original: Flow$Flowlog <- log(Flow$Flow)  
+Flow$Flowlog <- Flow$Flow 
+
 # Predict ln (concentration) based on equation calculated in the Sedrate software
 # Original for Tuki: Flow$concLog <- (Flow$Flowlog*1.089-7.004) 
 #Flow$concLog <- (Flow$Flowlog*1.089-6.5) #Calibrated to Tukituki
@@ -173,7 +175,7 @@ for (i in sitelist) {
     intercept_value <- lookup_result$Intercept
     slope_SE_value <- exp(lookup_result$Slope_SE)
     #Apply Sedrate correction factors
-    Flow$concLog <- Flow$Flowlog * slope_value
+    Flow$concLog <- Flow$Flowlog * slope_value / 2.13 / 1000
     Flow$predConc <- Flow$concLog # *slope_SE_value
   } else {
     cat("Site not found in the lookup table:", lookup_site, "\n")
@@ -223,31 +225,31 @@ for (i in sitelist) {
   
   ###############################
   #Export Flowplot to a PNG file
-#  filename <- paste("FLOW_", i, ".png", sep="")
-#  png(filename, width=1200, height=800)
+  filename <- paste("FLOW_", i, ".png", sep="")
+  png(filename, width=1200, height=800)
   
-#  Flowplot <- ggplot(data = measure1) +
-#    geom_path(aes(x = SampleTaken, y = Flow/1000), colour = 'blue', size = 0.4) + 
-#    scale_x_datetime(date_labels = "%b %Y", date_breaks = "3 months", name = "Date") +
-#    scale_y_continuous(labels = comma_format(), name = "Flow (m3/s)")
+  Flowplot <- ggplot(data = measure1) +
+    geom_path(aes(x = SampleTaken, y = Flow/1000), colour = 'blue', size = 0.4) + 
+    scale_x_datetime(date_labels = "%b %Y", date_breaks = "3 months", name = "Date") +
+    scale_y_continuous(labels = comma_format(), name = "Flow (m3/s)")
   
-#  print(Flowplot)
-#  dev.off()
+  print(Flowplot)
+  dev.off()
   
   ###############################
   # Export Sample SSC plot to a PNG file
-#  filename <- paste("SSC_", i, ".png", sep="")
-#  png(filename, width=1200, height=800)
+  filename <- paste("SSC_", i, ".png", sep="")
+  png(filename, width=1200, height=800)
   
-#  SSC <- ggplot(data = measure1) +
-#    geom_path(data = measure1, aes(x = SampleTaken, y = Flow/1000), colour = "blue", size = 0.4)+
-#    geom_point(data = merged2, aes(x = SampleTaken, y = Flow/1000, color = Measurement2), size = 1.5)+
-#    scale_color_manual(values = c("#009E73",'coral1'), name = "Sample Type")+
-#    scale_x_datetime(date_labels = "%b %Y", date_breaks = "3 months", name = "Date") +
-#    scale_y_continuous(labels = comma_format(),  name = "Flow (m3/s)")
+  SSC <- ggplot(data = measure1) +
+    geom_path(data = measure1, aes(x = SampleTaken, y = Flow/1000), colour = "blue", size = 0.4)+
+    geom_point(data = merged2, aes(x = SampleTaken, y = Flow/1000, color = Measurement2), size = 1.5)+
+    scale_color_manual(values = c("#009E73",'coral1'), name = "Sample Type")+
+    scale_x_datetime(date_labels = "%b %Y", date_breaks = "3 months", name = "Date") +
+    scale_y_continuous(labels = comma_format(),  name = "Flow (m3/s)")
   
-#  print(SSC)
-#  dev.off()
+  print(SSC)
+  dev.off()
   
   ################################
   # Export Cumulative Sediment1 plot to a PNG file
@@ -265,18 +267,18 @@ for (i in sitelist) {
   
   ################################
   # Export Cumulative Sediment2 plot to a PNG file
-#  filename <- paste("CUMSSC2_", i, ".png", sep="")
-#  png(filename, width=1200, height=800)
+  filename <- paste("CUMSSC2_", i, ".png", sep="")
+  png(filename, width=1200, height=800)
   
-#  CUMSSC2 <- ggplot(data = measure1) +
-#    geom_line(data = measure1, aes(x = SampleTaken, y = predConc), colour = 'darkgoldenrod') +
-#    geom_point(data = merged3, aes(x = SampleTaken, y = Conc, color = Measurement2),colour = 'coral1', size = 1.5)+
-#    geom_line(data = measure1, aes(x = SampleTaken, y = summary1*1), colour = 'red')+
-#    scale_x_datetime(date_labels = "%b %Y", date_breaks = "3 months", name = "Date") +
-#    scale_y_continuous(name = "SSC (mg/l)",expand = c(0,0,0.2,2), sec.axis = sec_axis(~./1, name = "Cumulative sediment (T)"))
+  CUMSSC2 <- ggplot(data = measure1) +
+    geom_line(data = measure1, aes(x = SampleTaken, y = predConc), colour = 'darkgoldenrod') +
+    geom_point(data = merged3, aes(x = SampleTaken, y = Conc, color = Measurement2),colour = 'coral1', size = 1.5)+
+    geom_line(data = measure1, aes(x = SampleTaken, y = summary1*1), colour = 'red')+
+    scale_x_datetime(date_labels = "%b %Y", date_breaks = "3 months", name = "Date") +
+    scale_y_continuous(name = "SSC (mg/l)",expand = c(0,0,0.2,2), sec.axis = sec_axis(~./1, name = "Cumulative sediment (T)"))
   
-#  print(CUMSSC2)
-#  dev.off()
+  print(CUMSSC2)
+  dev.off()
   
 }
 #Loop 2 completed---------------------------------------------------------------
@@ -288,9 +290,9 @@ print(statistics_table_ratings)
 write.csv(statistics_table_ratings, file = "statistics_table_ratings.csv", row.names = FALSE)
 
 #Subset output for speed
-measure <- subset(measure, select = -c(Flowlog, concLog, AccumLoad))
+#measure <- subset(measure, select = -c(Flowlog, concLog, AccumLoad))
 write.csv(measure, file = "measure.csv", row.names = FALSE)
 #Write also to app directory for Shiny
-write.csv(measure, file = "I:/306 HCE Project/R_analysis/Rating curves/RatingCurvesGit/appmeasure.csv", row.names = FALSE)
+write.csv(measure, file = "I:/306 HCE Project/R_analysis/Rating curves/RatingCurvesGit/app/measure.csv", row.names = FALSE)
 
 ################################################################################

@@ -10,7 +10,7 @@
 ui <- fluidPage(
   
   # App title ----
-  titlePanel("Sediment Rating Curves, Flow & Load Summary"),
+  titlePanel("Sediment Plots, Flow & Load Summary"),
   
   # Sidebar layout with input and output definitions ----
   sidebarLayout(

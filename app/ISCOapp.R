@@ -12,8 +12,10 @@ library(htmltools)
 library(plotly)
 
 setwd("I:/306 HCE Project/R_analysis/Rating curves/RatingCurvesGit/app")
-df <- read.csv("./measure.csv")
+df <- read.csv("I:/306 HCE Project/R_analysis/Rating curves/RatingCurvesGit/app/measure.csv")
 df$SampleTaken<-as.POSIXct(df$SampleTaken, format="%Y-%m-%d %H:%M:%S")
+# Get a unique list of site names
+sitelist <- unique(df$SiteName)
 
 ################################################################################
 
