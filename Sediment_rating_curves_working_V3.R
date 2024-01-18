@@ -150,7 +150,7 @@ Flow$Flow <- as.numeric(Flow$Flow)
 # Take natural log of flow data
 Flow$Flowlog <- log(Flow$Flow)  
 # Predict ln (concentration) based on equation calculated in the Sedrate software
-#Flow$concLog <- (Flow$Flowlog*1.089-7.004) 
+# Original for Tuki: Flow$concLog <- (Flow$Flowlog*1.089-7.004) 
 #Flow$concLog <- (Flow$Flowlog*1.089-6.5) #Calibrated to Tukituki
 #Flow$concLog <- (Flow$Flowlog*1.089) #Calibrated to Aropaoanui
 Flow$concLog <- (Flow$Flowlog) #Calibrate using regression function below.
@@ -172,26 +172,21 @@ for (i in sitelist) {
     slope_value <- lookup_result$Slope
     intercept_value <- lookup_result$Intercept
     slope_SE_value <- exp(lookup_result$Slope_SE)
-    
-    Flow$concLog <- Flow$Flowlog * (slope_value) + intercept_value
-    Flow$predConc <- (log(Flow$concLog))*slope_SE_value
+    #Apply Sedrate correction factors
+    Flow$concLog <- Flow$Flowlog * slope_value
+    Flow$predConc <- Flow$concLog # *slope_SE_value
   } else {
     cat("Site not found in the lookup table:", lookup_site, "\n")
   }
 
-
-  #Flow$predConc <- exp(Flow$concLog)/2.32+236
   # Convert concentration to load and mg to T
   Flow$load <- (Flow$predConc*Flow$Flow*900)/1000000000 
-
   # Remove any N/As from the dataset 
   measure <- Flow %>%
     mutate(across(where(is.numeric), ~ ifelse(is.na(.), 0, .)))
-
   # Accumulate load
   measure <- within(measure, AccumLoad <- Reduce("+", load, accumulate = TRUE)/100)
   measure$SummaryAllSites <- measure$AccumLoad
-
   # Group the data by Site and apply the cumsum function within each group
   measure <- measure %>%
     group_by(SiteName) %>%
@@ -284,7 +279,6 @@ for (i in sitelist) {
 #  dev.off()
   
 }
-
 #Loop 2 completed---------------------------------------------------------------
 
 
@@ -296,33 +290,7 @@ write.csv(statistics_table_ratings, file = "statistics_table_ratings.csv", row.n
 #Subset output for speed
 measure <- subset(measure, select = -c(Flowlog, concLog, AccumLoad))
 write.csv(measure, file = "measure.csv", row.names = FALSE)
+#Write also to app directory for Shiny
+write.csv(measure, file = "I:/306 HCE Project/R_analysis/Rating curves/RatingCurvesGit/appmeasure.csv", row.names = FALSE)
 
 ################################################################################
-
-
-
-
-
-
-
-
-# Merge datasets based on the 'site' column
-measure2 <- merge(Flow, subval_regression, by = "SiteName")
-head(measure2, 10)
-
-#Loop 2 through sites-----------------------------------------------------------
-for (i in sitelist) { 
-  
-  measure1 <- filter(measure2, SiteName == i)
-  merged2 <- filter(merged, Site == i)
-  merged3 <- filter(merged1, Site == i)
-  head(measure1, 10)
-  
-  # Apply unique slope and intercept 
-  #measure1$predConc <- exp(measure1$concLog) / measure1$Slope + measure1$Intercept
-  measure1$predConc <- exp(measure1$concLog) / measure1$Slope
-  
-}
-# End Loop 2 -------------------------------------------------------------------
-
-
