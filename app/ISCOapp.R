@@ -4,90 +4,70 @@
 #
 #App to explore the outputs of the ISCO programme.
 #Created 10/05/2023 by Ashton Eaves
+#Updated 19/01/2024 by Ashton Eaves
 
 library(shiny)
 library(ggplot2)
 library(scales)
 library(htmltools)
-library(plotly)
 
 setwd("I:/306 HCE Project/R_analysis/Rating curves/RatingCurvesGit/app")
 df <- read.csv("I:/306 HCE Project/R_analysis/Rating curves/RatingCurvesGit/app/measure.csv")
-df$SampleTaken<-as.POSIXct(df$SampleTaken, format="%Y-%m-%d %H:%M:%S")
+df$SampleTaken<-as.POSIXct(df$SampleTaken, format="%d/%m/%y %H:%M")
 # Get a unique list of site names
 sitelist <- unique(df$SiteName)
 
 ################################################################################
 
-# Define UI for miles per gallon app ----
+# Define UI for the app
 ui <- fluidPage(
+  titlePanel("Sediment Concentration Plots, Flow & Load Summary"),
   
-  # App title ----
-  titlePanel("Sediment Rating Curves, Flow & Load Summary"),
-  
-  # Sidebar layout with input and output definitions ----
   sidebarLayout(
-    
-    # Sidebar panel for inputs ----
     sidebarPanel(
-      # Input: Selector for variable to plot against ----
-      selectInput("SiteName", "Site Name:", 
-                  c(sitelist)),
-      selectInput("measure", "Measurement:",
+      selectInput("SiteName", "Site Name:", c(sitelist)),
+      selectInput("df", "Measurement:",
                   c("Flow (l/s)" = "Flow",
                     "Predicted Concentration SSC (mg/l)" = "predConc",
                     "Load SSC (mg)" = "load",
                     "Accumulated Load (T)" = "AccumLoadSite",
                     "Summary Load All Sites (T)" = "SummaryAllSites")),
-      dateRangeInput("dater","Date range:",start=df$SampleTaken[1],end=df$SampleTaken[nrow(df)]),
-      
-      # Input: Checkbox for whether outliers should be included ----
-      #      checkboxInput("outliers", "Show outliers", TRUE)
-      
+      dateRangeInput("dater","Date range:",start=df$SampleTaken[1],end=df$SampleTaken[nrow(df)])
     ),
-    
-    # Main panel for displaying outputs ----
     mainPanel(
-      
-      # Output: Formatted text for caption ----
-      h3(textOutput("caption")),
-      
-      # Output: Plot of the requested variable against mpg ----
+      h3("Caption:"),
       plotOutput("Plot")
-      
     )
   )
 )
 
-# Data pre-processing ----
-# Tweak the "am" variable to have nicer factor labels -- since this
-# doesn't rely on any user inputs, we can do this once at startup
-# and then use the value throughout the lifetime of the app
-
-
-head# Define server logic to plot various variables against mpg ----
+# Define server logic
 server <- function(input, output) {
-  
-  # Return the formula text for printing as a caption ----
-  output$caption <- renderText({
-    paste("Measurement ~", input$measure," | Site ~", input$SiteName)
-    #   formulaText()
-  })
-  
-  # Generate a plot of the requested variable ----
   output$Plot <- renderPlot({
-    # Filter data based on user input
+    print("Debug: Inside renderPlot")
+    
     df1 <- subset(df, SiteName == input$SiteName)
-    df2 <- df1[df1$SampleTaken>=input$dater[1] & df1$SampleTaken<=input$dater[2],]
-    # Generate plot based on filtered data
-    ggplot(data = df2) +
-      geom_path(aes(x = SampleTaken, y = df2[[input$measure]]), colour = 'black', linewidth = 0.4) + theme_bw() +
+    
+    print("Start Date:")
+    print(as.POSIXct(input$dater[1]))
+    
+    print("End Date:")
+    print(as.POSIXct(input$dater[2]))
+    
+    df2 <- df1[df1$SampleTaken >= as.POSIXct(input$dater[1]) & df1$SampleTaken <= as.POSIXct(input$dater[2]),]
+    
+    print("Filtered Data:")
+    print(df2)
+    
+    ggplot(data = df2, aes(x = SampleTaken, y = df2[[input$df]])) +
+      geom_point() +
+      theme_bw() +
       scale_x_datetime(date_labels = "%b %Y", date_breaks = "1 month") +
-      scale_y_continuous(labels = comma_format())+
-      theme(axis.text = element_text(colour = 'black', size = 12), axis.title  = element_text(colour = 'black', size = 12)) +
-      xlab('Date') + ylab(paste(input$measure))
+      scale_y_continuous(labels = scales::comma_format()) +
+      theme(axis.text = element_text(colour = 'black', size = 12),
+            axis.title = element_text(colour = 'black', size = 12)) +
+      xlab('Date') + ylab(paste(input$df))
   })
-  
 }
 
 ##### Turn on ONE of the options below:

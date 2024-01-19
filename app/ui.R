@@ -3,14 +3,18 @@
 #
 #App to explore the outputs of the ISCO programme.
 #Created 10/05/2023 by Ashton Eaves
+#Updated 19/01/2024 by Ashton Eaves
 
 
 ### UI for IO deployment:
 
+################################################################################
+
+# Define UI for app ----
 ui <- fluidPage(
   
   # App title ----
-  titlePanel("Sediment Plots, Flow & Load Summary"),
+  titlePanel("Sediment Rating Curves, Flow & Load Summary"),
   
   # Sidebar layout with input and output definitions ----
   sidebarLayout(
@@ -20,7 +24,7 @@ ui <- fluidPage(
       # Input: Selector for variable to plot against ----
       selectInput("SiteName", "Site Name:", 
                   c(sitelist)),
-      selectInput("measure", "Measurement:",
+      selectInput("df", "Measurement:",
                   c("Flow (l/s)" = "Flow",
                     "Predicted Concentration SSC (mg/l)" = "predConc",
                     "Load SSC (mg)" = "load",

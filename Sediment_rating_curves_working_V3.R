@@ -46,8 +46,8 @@ sitelist <- SiteList(dfile, "")
 Hilltop::SiteList(dfile)
 
 # Date range. 
-date1 <- "01-February-2018 00:00:00"
-date2 <- "01-February-2023 00:00:00"
+date1 <- "01-March-2022 00:00:00"
+date2 <- "01-March-2023 00:00:00"
 
 #Measurements/data that we want to pull from the Hilltop file 
 measurement <- c(	'Suspended Solids [Suspended Solids]','Suspended Sediment Concentration', "Flow")  

@@ -7,7 +7,7 @@
 
 ####Server side for Shiny IO:
 
-head# Define server logic to plot various variables against mpg ----
+head# Define server logic to plot various variables
 server <- function(input, output) {
   
   # Return the formula text for printing as a caption ----
