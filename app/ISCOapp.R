@@ -1,6 +1,7 @@
 ################################################################################
 # This is the main Shiny web application. You can run the application by clicking
 # the 'Run App' button above.
+# Need to format date-time in CSV first!!!!!
 #
 #App to explore the outputs of the ISCO programme.
 #Created 10/05/2023 by Ashton Eaves
@@ -10,10 +11,12 @@ library(shiny)
 library(ggplot2)
 library(scales)
 library(htmltools)
+library(hms) 
+library(lubridate) 
 
 setwd("I:/306 HCE Project/R_analysis/Rating curves/RatingCurvesGit/app")
 df <- read.csv("I:/306 HCE Project/R_analysis/Rating curves/RatingCurvesGit/app/measure.csv")
-df$SampleTaken<-as.POSIXct(df$SampleTaken, format="%d/%m/%y %H:%M")
+df$SampleTaken<-as.POSIXct(df$SampleTaken, format = "%d/%m/%Y %H:%M")
 # Get a unique list of site names
 sitelist <- unique(df$SiteName)
 
@@ -60,7 +63,7 @@ server <- function(input, output) {
     print(df2)
     
     ggplot(data = df2, aes(x = SampleTaken, y = df2[[input$df]])) +
-      geom_point() +
+      geom_line() +
       theme_bw() +
       scale_x_datetime(date_labels = "%b %Y", date_breaks = "1 month") +
       scale_y_continuous(labels = scales::comma_format()) +
