@@ -38,7 +38,7 @@ ui <- fluidPage(
       dateRangeInput("dater","Date range:",start=df$SampleTaken[1],end=df$SampleTaken[nrow(df)])
     ),
     mainPanel(
-      h3("Caption:"),
+      verbatimTextOutput("caption"),
       plotOutput("Plot")
     )
   )
@@ -46,21 +46,13 @@ ui <- fluidPage(
 
 # Define server logic
 server <- function(input, output) {
+  output$caption <- renderText({
+    paste("Measurement ~", input$df, " | Site ~", input$SiteName)
+  })
+  
   output$Plot <- renderPlot({
-    print("Debug: Inside renderPlot")
-    
     df1 <- subset(df, SiteName == input$SiteName)
-    
-    print("Start Date:")
-    print(as.POSIXct(input$dater[1]))
-    
-    print("End Date:")
-    print(as.POSIXct(input$dater[2]))
-    
     df2 <- df1[df1$SampleTaken >= as.POSIXct(input$dater[1]) & df1$SampleTaken <= as.POSIXct(input$dater[2]),]
-    
-    print("Filtered Data:")
-    print(df2)
     
     ggplot(data = df2, aes(x = SampleTaken, y = df2[[input$df]])) +
       geom_line() +
