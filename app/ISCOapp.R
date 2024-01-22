@@ -13,9 +13,14 @@ library(scales)
 library(htmltools)
 library(hms) 
 library(lubridate) 
+library(readr)
 
-setwd("I:/306 HCE Project/R_analysis/Rating curves/RatingCurvesGit/app")
-df <- read.csv("I:/306 HCE Project/R_analysis/Rating curves/RatingCurvesGit/app/measure.csv")
+#setwd("I:/306 HCE Project/R_analysis/Rating curves/RatingCurvesGit/app")
+#df <- read.csv("I:/306 HCE Project/R_analysis/Rating curves/RatingCurvesGit/app/measure.csv")
+df <- read_csv("https://media.githubusercontent.com/media/aceaves/SedimentRatingCurves/main/app/measure.csv")
+# Display the first few rows of the data frame
+head(df)
+
 df$SampleTaken<-as.POSIXct(df$SampleTaken, format = "%d/%m/%Y %H:%M")
 # Get a unique list of site names
 sitelist <- unique(df$SiteName)

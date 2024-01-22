@@ -290,7 +290,11 @@ print(statistics_table_ratings)
 write.csv(statistics_table_ratings, file = "statistics_table_ratings.csv", row.names = FALSE)
 
 #Subset output for speed
-#measure <- subset(measure, select = -c(Flowlog, concLog, AccumLoad))
+#measure_out <- subset(Flow, select = -c(SampleTaken, SiteName, Flow, predConc, load))
+#measure_out$Flow <- measure_out$Flow/1000 # Change to cumecs
+measure_out <- Flow
+measure_out <- left_join(measure_out, measure, by = "SampleTaken")
+
 write.csv(measure, file = "measure.csv", row.names = FALSE)
 #Write also to app directory for Shiny
 write.csv(measure, file = "I:/306 HCE Project/R_analysis/Rating curves/RatingCurvesGit/app/measure.csv", row.names = FALSE)
