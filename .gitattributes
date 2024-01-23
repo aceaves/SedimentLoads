@@ -1,2 +1,4 @@
 *.csv filter=lfs diff=lfs merge=lfs -text
 app/measure.csv filter=lfs diff=lfs merge=lfs -text
+I:/306[[:space:]]HCE[[:space:]]Project/R_analysis/Rating[[:space:]]curves/RatingCurvesGit/app filter=lfs diff=lfs merge=lfs -text
+I:/306[[:space:]]HCE[[:space:]]Project/R_analysis/Rating[[:space:]]curves/RatingCurvesGit/app filter=lfs diff=lfs merge=lfs -text
