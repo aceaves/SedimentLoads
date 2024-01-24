@@ -1,7 +1,7 @@
 ################################################################################
 # This script has been written to predict sediment loads for respective rivers in Hawke's Bay. 
 # Rating curves have been generated using regressions generated in SSC_flow_regressions.R to predict sediment loads.
-# Edited by Ashton Eaves and tracked using Github: https://github.com/aceaves/SedimentRatingCurves
+# Edited by Ashton Eaves from March 2023 and tracked using Github: https://github.com/aceaves/SedimentRatingCurves
 
 library(Hilltop)
 library(dplyr)
@@ -35,12 +35,13 @@ library(readxl)
 #                      startdate = format(Sys.Date(), "%Y-%m-%d"))
 
 ################################################################################
+############ Data inputs  ################
 
 #Set file path to ISCO Hilltop file 
 dfile <- HilltopData("I:/306 HCE Project/Sites/ISCO_Processing.dsn")
 #dfile <- HilltopData("N:/HilltopData/EMAR/EMARFull.dsn")
 
-# Get measurement list for respective sites 
+# Get site list or measurement list for respective sites 
 sitelist <- SiteList(dfile, "")
 #measurementlist <- Hilltop::MeasurementList(dfile, sitelist)
 Hilltop::SiteList(dfile)
@@ -51,6 +52,33 @@ date2 <- "01-March-2023 00:00:00"
 
 #Measurements/data that we want to pull from the Hilltop file 
 measurement <- c(	'Suspended Solids [Suspended Solids]','Suspended Sediment Concentration', "Flow")  
+
+# Read regression file into a data frame
+regression_output <- "I:/306 HCE Project/R_analysis/Rating curves/RatingCurvesGit/Outputs/Regressions/statistics_output.xlsx"
+regression <- read.xlsx(regression_output)
+regression$Slope <- as.numeric(regression$Slope)
+regression$Intercept <- as.numeric(regression$Intercept)
+regression$RSquared <- as.numeric(regression$RSquared)
+regression$Slope_SE <- as.numeric(regression$Slope_SE)
+regression$Intercept_SE <- as.numeric(regression$Intercept_SE)
+
+subval_regression <- select(regression, SiteName, Slope, Intercept, RSquared, Slope_SE, Intercept_SE)
+# Print the data
+print(subval_regression)
+
+# Create an empty data frame to store statistics or empty any existing data in the dataframe
+statistics_table_ratings <- data.frame(
+  site_name = character(),
+  Min = numeric(),
+  Q1 = numeric(),
+  Median = numeric(),
+  Mean = numeric(),
+  Q3 = numeric(),
+  Max = numeric(),
+  Sum = numeric(),
+  stringsAsFactors = FALSE)
+
+###############################################################################
 
 #Loop 1 through sites-----------------------------------------------------------
 name <- data.frame(sitelist)
@@ -87,24 +115,28 @@ colnames(melt) <- c("SampleTaken", "Flow", "SiteName","Measurement")
 melt$SampleTaken <-  lubridate::floor_date(melt$SampleTaken, "15 minutes")
 
 Flow <- filter(melt, Measurement == "Flow")
-Flow$Flow <- as.numeric(Flow$Flow)
+Flow$Flow <- as.numeric(Flow$Flow, na.rm = TRUE)
 Flow <- Flow %>% group_by(SampleTaken, SiteName, Measurement) %>%
-  summarise(Flow = mean(Flow)) 
+  summarise(Flow = mean(Flow))
+Flow <- Flow[,c(1,2,4)]
   
 SSC <- filter(melt, Measurement %in% c("Suspended Sediment Concentration", "Suspended Solids"))
 SSC <- as.data.frame(sapply(SSC, gsub, pattern = "<|>", replacement = ""))
-SSC$SampleTaken <- as.POSIXct(SSC$SampleTaken, format = "%Y-%m-%d %H:%M:%S")
+SSC$SampleTaken <- as.POSIXct(SSC$SampleTaken, format = "%Y-%m-%d %H:%M:%S", na.rm = TRUE)
 SSC$SampleTaken <- lubridate::round_date(SSC$SampleTaken, "15 minutes") 
-SSC$SampleTaken <-as.character(SSC$SampleTaken) 
-Flow$SampleTaken <-as.character(Flow$SampleTaken) 
-  
-merged <- merge(Flow, SSC, by = "SampleTaken" )
-merged <- merged[,c(1,2,3,4,5,7)]
 
-colnames(merged) <- c('SampleTaken','Site','Measurment', 'Flow', 'Conc', 'Measurement2')
+# Convert to character to merge flow and concentration
+Flow$SampleTaken <-as.character(Flow$SampleTaken) 
+SSC$SampleTaken <-as.character(SSC$SampleTaken) 
+merged <- merge(Flow, SSC, by = c("SampleTaken", "SiteName"))
+# Remove unnecessary columns
+merged <- merged[,c(1,2,3,4,5)]
+colnames(merged) <- c('SampleTaken','Site', 'Flow', 'Conc', 'Measurement2')
+# Convert back to date-time and Conc to numeric
 merged$SampleTaken <- as.POSIXct(merged$SampleTaken, format = "%Y-%m-%d %H:%M:%S")
 merged$Conc <- as.numeric(merged$Conc)
-  
+Flow$SampleTaken <- as.POSIXct(Flow$SampleTaken , format = "%Y-%m-%d %H:%M:%S")
+# Filter out SSC from SS
 merged$Measurement2[merged$Measurement2 == 'Suspended Sediment Concentration'] <- "SSC"
 merged$Measurement2[merged$Measurement2 == 'Suspended Solids'] <- "SS"
 merged1 <- filter(merged, SampleTaken > "2018-06-30" & Measurement2 == 'SSC')
@@ -114,39 +146,8 @@ merged1 <- filter(merged, SampleTaken > "2018-06-30" & Measurement2 == 'SSC')
 #Set working directory for outputs and customise as needed (date etc)
 setwd('I:/306 HCE Project/R_analysis/Rating curves/RatingCurvesGit/Outputs')
 
-# Create an empty data frame to store statistics or empty any existing data in the dataframe
-statistics_table_ratings <- data.frame(
-  site_name = character(),
-  Min = numeric(),
-  Q1 = numeric(),
-  Median = numeric(),
-  Mean = numeric(),
-  Q3 = numeric(),
-  Max = numeric(),
-  Sum = numeric(),
-  stringsAsFactors = FALSE)
-
-###############################################################################
-
-# Read regression file into a data frame
-regression_output <- "I:/306 HCE Project/R_analysis/Rating curves/RatingCurvesGit/Outputs/Regressions/statistics_output.xlsx"
-regression <- read.xlsx(regression_output)
-regression$Slope <- as.numeric(regression$Slope)
-regression$Intercept <- as.numeric(regression$Intercept)
-regression$RSquared <- as.numeric(regression$RSquared)
-regression$Slope_SE <- as.numeric(regression$Slope_SE)
-regression$Intercept_SE <- as.numeric(regression$Intercept_SE)
-
-subval_regression <- select(regression, SiteName, Slope, Intercept, RSquared, Slope_SE, Intercept_SE)
-# Print the data
-print(subval_regression)
-
 ##########################################
 
-# Convert time/date to as.POSIXct 
-Flow$SampleTaken <- as.POSIXct(Flow$SampleTaken , format = "%Y-%m-%d %H:%M:%S")
-# Convert flow column to numeric
-Flow$Flow <- as.numeric(Flow$Flow) 
 # Take natural log of flow data
 #Original: Flow$Flowlog <- log(Flow$Flow)  
 Flow$Flowlog <- Flow$Flow 
@@ -164,7 +165,6 @@ for (i in sitelist) {
 
   # Assuming 'SiteName' is the key for the lookup
   lookup_site <- i  # Replace with the actual site name you are interested in
-
   # Perform lookup to get the corresponding values (Slope and Intercept)
   lookup_result <- subval_regression[subval_regression$SiteName == lookup_site, c("Slope", "Intercept", "Slope_SE")]
   
@@ -174,7 +174,7 @@ for (i in sitelist) {
     slope_value <- lookup_result$Slope
     intercept_value <- lookup_result$Intercept
     slope_SE_value <- exp(lookup_result$Slope_SE)
-    #Apply Sedrate correction factors
+    #Apply Sedrate correction factors. Currently just calibrated based on Tuki relationship
     Flow$concLog <- Flow$Flowlog * slope_value / 2.13 / 1000
     Flow$predConc <- Flow$concLog # *slope_SE_value
   } else {
@@ -194,9 +194,7 @@ for (i in sitelist) {
     group_by(SiteName) %>%
     mutate(AccumLoadSite = cumsum(load)/100)
 
-
-################################################################################
-#Exports:
+###  Exports  ##################################################################
 
   measure1 <- filter(measure, SiteName == i)
   merged2 <- filter(merged, Site == i)
@@ -222,7 +220,7 @@ for (i in sitelist) {
   # Add the new row to the statistics table
   statistics_table_ratings <- rbind(statistics_table_ratings, new_row)
   print(summary_stats)
-  
+
   ###############################
   #Export Flowplot to a PNG file
   filename <- paste("FLOW_", i, ".png", sep="")
@@ -283,17 +281,13 @@ for (i in sitelist) {
 }
 #Loop 2 completed---------------------------------------------------------------
 
-
+###### More Outputs  ##########################
 # Print the resulting table
 print(statistics_table_ratings)
 #Table outputs
+measure <- measure[complete.cases(measure$SampleTaken), ]
+measure$Flow <- measure$Flow/1000
 write.csv(statistics_table_ratings, file = "statistics_table_ratings.csv", row.names = FALSE)
-
-#Subset output for speed
-#measure_out <- subset(Flow, select = -c(SampleTaken, SiteName, Flow, predConc, load))
-#measure_out$Flow <- measure_out$Flow/1000 # Change to cumecs
-measure_out <- Flow
-measure_out <- left_join(measure_out, measure, by = "SampleTaken")
 
 write.csv(measure, file = "measure.csv", row.names = FALSE)
 #Write also to app directory for Shiny

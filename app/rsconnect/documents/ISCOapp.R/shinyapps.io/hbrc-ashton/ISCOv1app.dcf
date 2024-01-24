@@ -5,9 +5,9 @@ account: hbrc-ashton
 server: shinyapps.io
 hostUrl: https://api.shinyapps.io/v1
 appId: 10984983
-bundleId: 8168905
+bundleId: 8176556
 url: https://hbrc-ashton.shinyapps.io/ISCOv1app/
 version: 1
 asMultiple: FALSE
 asStatic: FALSE
-ignoredFiles: measure-test.csv|measure.csv|server.R|ui.R
+ignoredFiles: markers.csv|measure-test.csv|measure.csv
