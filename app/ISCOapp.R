@@ -15,6 +15,7 @@ library(hms)
 library(lubridate) 
 library(readr)
 library(dygraphs)
+library(plotly)
 
 #setwd("I:/306 HCE Project/R_analysis/Rating curves/RatingCurvesGit/app")
 #df <- read.csv("I:/306 HCE Project/R_analysis/Rating curves/RatingCurvesGit/app/measure.csv")
@@ -27,6 +28,21 @@ df$SampleTaken<-as.POSIXct(df$SampleTaken, format = "%d/%m/%Y %H:%M")
 sitelist <- unique(df$SiteName)
 
 ################################################################################
+
+# ggplot code
+ggplot_code <- function(df2, input_df) {
+  ggplot(data = df2, aes(x = SampleTaken, y = .data[[input_df]])) +
+    geom_line(colour = 'darkgoldenrod') +
+    theme_bw() +
+    scale_x_datetime(date_labels = "%b %Y", date_breaks = "1 month") +
+    scale_y_continuous(labels = scales::comma_format()) +
+    theme(
+      axis.text = element_text(colour = 'black', size = 9),
+      axis.title = element_text(colour = 'black', size = 12),
+      axis.text.x = element_text(angle = 45, hjust = 1)  # Adjust the angle as needed
+    ) +
+    xlab('Date') + ylab(paste(input_df))
+}
 
 # Define UI for the app
 ui <- fluidPage(
@@ -45,7 +61,7 @@ ui <- fluidPage(
     ),
     mainPanel(
       verbatimTextOutput("caption"),
-      plotOutput("Plot")
+      plotlyOutput("Plot")
     )
   )
 )
@@ -56,19 +72,12 @@ server <- function(input, output) {
     paste("Measurement ~", input$df, " | Site ~", input$SiteName)
   })
   
-  output$Plot <- renderPlot({
+  output$Plot <- renderPlotly({
     df1 <- subset(df, SiteName == input$SiteName)
     df2 <- df1[df1$SampleTaken >= as.POSIXct(input$dater[1]) & df1$SampleTaken <= as.POSIXct(input$dater[2]),]
     
-#    ggplot(data = df2, aes(x = SampleTaken, y = df2[[input$df]])) +
-    ggplot(data = df2, aes(x = SampleTaken, y = .data[[input$df]])) +
-      geom_line(colour = 'darkgoldenrod') +
-      theme_bw() +
-      scale_x_datetime(date_labels = "%b %Y", date_breaks = "1 month") +
-      scale_y_continuous(labels = scales::comma_format()) +
-      theme(axis.text = element_text(colour = 'black', size = 12),
-            axis.title = element_text(colour = 'black', size = 12)) +
-      xlab('Date') + ylab(paste(input$df))
+    ggplot_code(df2, input$df) %>%
+      ggplotly()
   })
 }
 
