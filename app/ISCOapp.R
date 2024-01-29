@@ -20,7 +20,8 @@ library(leaflet)
 library(dplyr)
 
 # Load map dataset
-markers_data <- read.csv("I:/306 HCE Project/R_analysis/Rating curves/RatingCurvesGit/app/markers.csv")
+#markers_data <- read.csv("I:/306 HCE Project/R_analysis/Rating curves/RatingCurvesGit/app/markers.csv")
+markers_data <- read.csv("markers.csv")
 
 # Load sediment concentration data
 df <- read_csv("https://media.githubusercontent.com/media/aceaves/SedimentRatingCurves/main/app/measure.csv")
@@ -44,7 +45,36 @@ ggplot_code <- function(df2, input_df) {
 
 # Define UI for the app
 ui <- fluidPage(
-  titlePanel("Sediment Concentration Plots, Flow & Load Summary"),
+  
+  tags$head(
+    tags$style(HTML("
+      /* Custom CSS styles */
+      .footer {
+        text-align: center;
+        margin-top: 20px;
+        color: #777;
+      }
+
+      .logo img {
+        max-width: 100px; /* Adjust the maximum width as needed */
+      }
+    "))
+  ),
+  fluidRow(
+#    column(12, align = "center", "Your Shiny App Content Goes Here"),
+#    column(12, align = "center", "More Shiny App Content")
+  ),
+  # Footer with logo and copyright
+  tags$div(
+    style = "text-align: center; margin-bottom: 20px; color: #777;",
+#    tags$div(
+#      class = "logo",
+#      img(src = "app/images/HBRC-RGB.png", alt = "Company Logo", style = "max-width: 100px;")
+#    ),
+    HTML("<p>© 2024 Hawke's Bay Regional Council. All rights reserved.</p>")
+  ),
+  
+  titlePanel("HBRC - Sediment Concentration Plots, Flow & Load Summary"),
   
   sidebarLayout(
     sidebarPanel(
