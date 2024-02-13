@@ -5,12 +5,8 @@
             # and generates table with 200 'bins'. The flow distribution tables are uploaded to the Sedrate access database (). A full description of the 
             # processing workflow can be found here:  
 
-
-
-
 # Connect to the WRC proxy 
 #Sys.setenv(https_proxy="http://wwwproxy.wairc.govt.nz:8080")
-
 
 # Load packages 
 library(readxl)

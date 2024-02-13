@@ -17,6 +17,9 @@ library(zoo)
 library(xts)
 library(readxl)
 
+# Set the locale to ensure proper date-time parsing
+Sys.setlocale("LC_TIME", "C")
+
 ################################################################################
 #Set up task scheduler
 
@@ -47,7 +50,7 @@ sitelist <- SiteList(dfile, "")
 Hilltop::SiteList(dfile)
 
 # Date range. 
-date1 <- "01-March-1980 00:00:00"
+date1 <- "01-March-2018 00:00:00"
 date2 <- "01-March-2023 00:00:00"
 
 #Measurements/data that we want to pull from the Hilltop file 
@@ -114,11 +117,24 @@ colnames(melt) <- c("SampleTaken", "Flow", "SiteName","Measurement")
 # The aggregate function is used to aggregate data to 15 minute intervals.
 melt$SampleTaken <-  lubridate::floor_date(melt$SampleTaken, "15 minutes")
 
+
 Flow <- filter(melt, Measurement == "Flow")
 Flow$Flow <- as.numeric(Flow$Flow, na.rm = TRUE)
+# Convert SampleTaken to POSIXct
+Flow$SampleTaken <- as.POSIXct(strptime(Flow$SampleTaken, "%Y-%m-%d %H:%M:%S"))
 Flow <- Flow %>% group_by(SampleTaken, SiteName, Measurement) %>%
   summarise(Flow = mean(Flow))
 Flow <- Flow[,c(1,2,4)]
+
+
+#### Export for use in FlowDist & Gendist 
+#### Do not need to do every time
+# Convert DateTime to character with format including time
+#Flow$SampleTaken <- format(Flow$SampleTaken, "%Y-%m-%d %H:%M:%S")
+
+# Export data to CSV for use in Sedrate
+#write.csv(Flow, file = "Flow_Mar2018Mar2023.csv", row.names = FALSE)
+
   
 SSC <- filter(melt, Measurement %in% c("Suspended Sediment Concentration", "Suspended Solids"))
 SSC <- as.data.frame(sapply(SSC, gsub, pattern = "<|>", replacement = ""))
@@ -142,7 +158,7 @@ merged$Measurement2[merged$Measurement2 == 'Suspended Solids'] <- "SS"
 merged1 <- filter(merged, SampleTaken > "2018-06-30" & Measurement2 == 'SSC')
 
 #Write out merged1 for external regression analysis
-write.csv(merged1, file = "I:/306 HCE Project/R_analysis/Rating curves/RatingCurvesGit/Outputs/merged1.csv", row.names = FALSE)
+#write.csv(merged1, file = "I:/306 HCE Project/R_analysis/Rating curves/RatingCurvesGit/Outputs/merged1.csv", row.names = FALSE)
 
 ###############################################################################
 
@@ -184,8 +200,20 @@ for (i in sitelist) {
     cat("Site not found in the lookup table:", lookup_site, "\n")
   }
 
+  ##### Calculates the total time (seconds) associated with each flow value 
+  Flow1 <- Flow %>%
+    mutate(time_diff = lead(SampleTaken)-(SampleTaken)) %>%
+    mutate(diff_secs = as.numeric(time_diff, units = 'secs')) %>% 
+    mutate(Flow = paste0(round(Flow, 0))) %>%
+    filter(!is.na(diff_secs), !is.na(Flow), diff_secs != 0) %>%
+    mutate(Flow = as.numeric(Flow))
+  
+  
   # Convert concentration to load and mg to T
-  Flow$load <- (Flow$predConc*Flow$Flow*900)/1000000000 
+  Flow$load <- (Flow$predConc*Flow$Flow*Flow1$diff_secs)/1000000000 
+  # Apply conversion factor taken from: 
+  # https://geology.humboldt.edu/courses/geology550/550_handouts/suspended_load_computation.pdf
+  Flow$Load <- Flow$Load * 0.0864 
   # Remove any N/As from the dataset 
   measure <- Flow %>%
     mutate(across(where(is.numeric), ~ ifelse(is.na(.), 0, .)))
@@ -196,6 +224,9 @@ for (i in sitelist) {
   measure <- measure %>%
     group_by(SiteName) %>%
     mutate(AccumLoadSite = cumsum(load)/100)
+  
+  # Use lowess to fit a smooth curve
+  lowess_fit <- lowess(Flow$predConc ~ Flow$Flow)
 
 ###  Exports  ##################################################################
 

@@ -115,11 +115,15 @@ setwd('I:/306 HCE Project/R_analysis/Rating curves/RatingCurvesGit/Outputs/Regre
 statistics_table <- data.frame(
   SiteName = character(),
   Iteration = integer(),
-  Slope = numeric(),
-  Intercept = numeric(),
-  RSquared = numeric(),
-  Slope_SE = numeric(),  # Standard error for Slope
-  Intercept_SE = numeric(),  # Standard error for Intercept
+  Slope_lm = numeric(),
+  Intercept_lm = numeric(),
+  RSquared_lm = numeric(),
+  Slope_SE_lm = numeric(),  # Standard error for Slope
+  Intercept_SE_lm = numeric(),  # Standard error for Intercept
+  RSquared_log = numeric(),
+  RSquared_power = numeric(),
+  RSquared_poly = numeric(),
+  RSquared_exp = numeric(),
   stringsAsFactors = FALSE
 )
 
@@ -169,26 +173,46 @@ for (i in sitelist) {
     # Fit linear regression only if there are non-missing values
     lm_model <- lm(result ~ Flow, data = merged_df, na.action = na.exclude)
     
+    # Fit logarithmic model
+    log_model <- lm(log(result) ~ log(Flow), data = merged_df, na.action = na.exclude)
+    # Fit power model
+    power_model <- lm(result ~ I(Flow^2), data = merged_df, na.action = na.exclude)
+    # You can adjust the exponent as needed
+    # Fit polynomial model (e.g., quadratic)
+    poly_model <- lm(result ~ poly(Flow, 2), data = merged_df, na.action = na.exclude)
+    # Adjust the degree (2 in this case) as needed
+    # Fit exponential model
+    exp_model <- lm(result ~ exp(Flow), data = merged_df, na.action = na.exclude)
+    
+    
     # Extract coefficients and R-squared
     coef_slope <- round(coef(lm_model)[2], 2)
     coef_intercept <- round(coef(lm_model)[1], 2)
-    r_squared <- round(summary(lm_model)$r.squared, 2)
+    r_squared_lm <- round(summary(lm_model)$r.squared, 2)
     # Extract coefficients and standard errors
     coefficients <- coef(lm_model)
     se <- summary(lm_model)$coefficients[, "Std. Error"]
     # Extract specific standard errors
     Slope_SE <- round(se["Flow"], 2)
     Intercept_SE <- round(se["(Intercept)"], 2)
+    r_squared_log <- round(summary(log_model)$r.squared, 2)
+    r_squared_power <- round(summary(power_model)$r.squared, 2)
+    r_squared_poly <- round(summary(poly_model)$r.squared, 2)
+    r_squared_exp <- round(summary(exp_model)$r.squared, 2)
     
     # Create a new row with statistics
     new_row <- data.frame(
       SiteName = site_name,
       Iteration = i,  # You may want to specify an iteration number here
-      Slope = coef_slope,
-      Intercept = coef_intercept,
-      RSquared = r_squared,
-      Slope_SE = se["Flow"],
-      Intercept_SE = se["(Intercept)"]
+      Slope_lm = coef_slope,
+      Intercept_lm = coef_intercept,
+      RSquared_lm = r_squared_lm,
+      Slope_SE_lm = se["Flow"],
+      Intercept_SE_lm = se["(Intercept)"],
+      RSquared_log = r_squared_log,
+      RSquared_power = r_squared_power,
+      RSquared_poly = r_squared_poly,
+      RSquared_exp = r_squared_exp
     )
     
     # Append the row to the statistics_table

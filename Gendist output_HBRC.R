@@ -3,10 +3,7 @@
 #Author: Tim Norris
 #Description: Script developed to replicate tidyda files required for import into Sedrate via the Gendist tool.   
 
-
-
-
-Sys.setenv(https_proxy="http://wwwproxy.wairc.govt.nz:8080")
+#Sys.setenv(https_proxy="http://wwwproxy.wairc.govt.nz:8080")
 
 ##Install libraries 
 
