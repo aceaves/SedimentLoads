@@ -127,7 +127,7 @@ Flow <- Flow %>% group_by(SampleTaken, SiteName, Measurement) %>%
 Flow <- Flow[,c(1,2,4)]
 
 
-#### Export for use in FlowDist & Gendist 
+#### Export for use in FlowDist & Gendist ######################################
 #### Do not need to do every time
 # Convert DateTime to character with format including time
 #Flow$SampleTaken <- format(Flow$SampleTaken, "%Y-%m-%d %H:%M:%S")
@@ -135,6 +135,7 @@ Flow <- Flow[,c(1,2,4)]
 # Export data to CSV for use in Sedrate
 #write.csv(Flow, file = "Flow_Mar2018Mar2023.csv", row.names = FALSE)
 
+################################################################################
   
 SSC <- filter(melt, Measurement %in% c("Suspended Sediment Concentration", "Suspended Solids"))
 SSC <- as.data.frame(sapply(SSC, gsub, pattern = "<|>", replacement = ""))
@@ -155,9 +156,9 @@ Flow$SampleTaken <- as.POSIXct(Flow$SampleTaken , format = "%Y-%m-%d %H:%M:%S")
 # Filter out SSC from SS
 merged$Measurement2[merged$Measurement2 == 'Suspended Sediment Concentration'] <- "SSC"
 merged$Measurement2[merged$Measurement2 == 'Suspended Solids'] <- "SS"
-merged1 <- filter(merged, SampleTaken > "2018-06-30" & Measurement2 == 'SSC')
+merged1 <- filter(merged, SampleTaken > "2018-03-01" & Measurement2 == 'SSC')
 
-#Write out merged1 for external regression analysis
+#####  Write out merged1 for external regression analysis ######################
 #write.csv(merged1, file = "I:/306 HCE Project/R_analysis/Rating curves/RatingCurvesGit/Outputs/merged1.csv", row.names = FALSE)
 
 ###############################################################################
@@ -178,42 +179,52 @@ Flow$Flowlog <- Flow$Flow
 Flow$concLog <- (Flow$Flowlog) #Calibrate using regression function below.
 # Apply bias correction factor (calculated in Sedrate)
 # Original: Flow$predConc <- exp(Flow$concLog)*1.3
+Flow$predConc <- (Flow$concLog)
+
+# Use lowess to fit a smooth curve
+#  lowess_fit <- lowess(Flow$predConc ~ Flow$Flow)
+
+# Group by SiteName and SampleTaken
+Flow <- Flow %>%
+  group_by(SiteName, SampleTaken)
+
+#### Calculates the total time (seconds) associated with each flow value 
+  Flow <- Flow %>%
+    group_by(SiteName) %>%
+    mutate(time_diff = lead(SampleTaken)-(SampleTaken)) %>% 
+    mutate(diff_secs = as.numeric(time_diff, units = 'secs')) %>%
+    mutate(diff_hours = as.numeric(time_diff, units = 'hours')) 
+
+# Apply conversion factor taken from: 
+# https://geology.humboldt.edu/courses/geology550/550_handouts/suspended_load_computation.pdf  
+Flow$load <- (Flow$predConc*Flow$Flow*Flow$diff_hours*(0.0864 / 24))
+
+# Convert load from mg to T
+Flow$load <- Flow$load/1000000000 
+
+
 
 #Loop 2 through sites-----------------------------------------------------------
 for (i in sitelist) { 
 
-  # Assuming 'SiteName' is the key for the lookup
-  lookup_site <- i  # Replace with the actual site name you are interested in
-  # Perform lookup to get the corresponding values (Slope and Intercept)
-  lookup_result <- subval_regression[subval_regression$SiteName == lookup_site, c("Slope", "Intercept", "Slope_SE")]
+#  # Assuming 'SiteName' is the key for the lookup
+#  lookup_site <- i  # Replace with the actual site name you are interested in
+#  # Perform lookup to get the corresponding values (Slope and Intercept)
+#  lookup_result <- subval_regression[subval_regression$SiteName == lookup_site, c("Slope", "Intercept", "Slope_SE")]
   
-  # Check if the lookup was successful
-  if (nrow(lookup_result) > 0) {
-    # Use the looked-up values in your calculation
-    slope_value <- lookup_result$Slope
-    intercept_value <- lookup_result$Intercept
-    slope_SE_value <- exp(lookup_result$Slope_SE)
-    #Apply Sedrate correction factors. Currently just calibrated based on Tuki relationship
-    Flow$concLog <- Flow$Flowlog * slope_value / 2.13 / 1000
-    Flow$predConc <- Flow$concLog # *slope_SE_value
-  } else {
-    cat("Site not found in the lookup table:", lookup_site, "\n")
-  }
+#  # Check if the lookup was successful
+#  if (nrow(lookup_result) > 0) {
+#    # Use the looked-up values in your calculation
+#    slope_value <- lookup_result$Slope
+#    intercept_value <- lookup_result$Intercept
+#    slope_SE_value <- exp(lookup_result$Slope_SE)
+#    #Apply Sedrate correction factors. Currently just calibrated based on Tuki relationship
+#    Flow$concLog <- Flow$Flowlog * slope_value / 2.13 / 1000
+#    Flow$predConc <- Flow$concLog # *slope_SE_value
+#  } else {
+#    cat("Site not found in the lookup table:", lookup_site, "\n")
+#  }
 
-  ##### Calculates the total time (seconds) associated with each flow value 
-  Flow1 <- Flow %>%
-    mutate(time_diff = lead(SampleTaken)-(SampleTaken)) %>%
-    mutate(diff_secs = as.numeric(time_diff, units = 'secs')) %>% 
-    mutate(Flow = paste0(round(Flow, 0))) %>%
-    filter(!is.na(diff_secs), !is.na(Flow), diff_secs != 0) %>%
-    mutate(Flow = as.numeric(Flow))
-  
-  
-  # Convert concentration to load and mg to T
-  Flow$load <- (Flow$predConc*Flow$Flow*Flow1$diff_secs)/1000000000 
-  # Apply conversion factor taken from: 
-  # https://geology.humboldt.edu/courses/geology550/550_handouts/suspended_load_computation.pdf
-  Flow$Load <- Flow$Load * 0.0864 
   # Remove any N/As from the dataset 
   measure <- Flow %>%
     mutate(across(where(is.numeric), ~ ifelse(is.na(.), 0, .)))
@@ -225,9 +236,6 @@ for (i in sitelist) {
     group_by(SiteName) %>%
     mutate(AccumLoadSite = cumsum(load)/100)
   
-  # Use lowess to fit a smooth curve
-  lowess_fit <- lowess(Flow$predConc ~ Flow$Flow)
-
 ###  Exports  ##################################################################
 
   measure1 <- filter(measure, SiteName == i)
