@@ -46,40 +46,21 @@ dfile <- HilltopData("I:/306 HCE Project/Sites/ISCO_Processing.dsn")
 
 # Get site list or measurement list for respective sites 
 sitelist <- SiteList(dfile, "")
-#measurementlist <- Hilltop::MeasurementList(dfile, sitelist)
 Hilltop::SiteList(dfile)
 
 # Date range. 
-date1 <- "01-March-2018 00:00:00"
+date1 <- "01-March-2022 00:00:00"
 date2 <- "01-March-2023 00:00:00"
 
 #Measurements/data that we want to pull from the Hilltop file 
 measurement <- c(	'Suspended Solids [Suspended Solids]','Suspended Sediment Concentration', "Flow")  
 
 # Read regression file into a data frame
-regression_output <- "I:/306 HCE Project/R_analysis/Rating curves/RatingCurvesGit/Outputs/Regressions/statistics_output.xlsx"
+regression_output <- "I:/306 HCE Project/R_analysis/Rating curves/RatingCurvesGit/Outputs/Regressions/regression_output_excel.xlsx"
 regression <- read.xlsx(regression_output)
-regression$Slope <- as.numeric(regression$Slope)
-regression$Intercept <- as.numeric(regression$Intercept)
-regression$RSquared <- as.numeric(regression$RSquared)
-regression$Slope_SE <- as.numeric(regression$Slope_SE)
-regression$Intercept_SE <- as.numeric(regression$Intercept_SE)
 
-subval_regression <- select(regression, SiteName, Slope, Intercept, RSquared, Slope_SE, Intercept_SE)
 # Print the data
-print(subval_regression)
-
-# Create an empty data frame to store statistics or empty any existing data in the dataframe
-statistics_table_ratings <- data.frame(
-  site_name = character(),
-  Min = numeric(),
-  Q1 = numeric(),
-  Median = numeric(),
-  Mean = numeric(),
-  Q3 = numeric(),
-  Max = numeric(),
-  Sum = numeric(),
-  stringsAsFactors = FALSE)
+print(regression)
 
 ###############################################################################
 
@@ -125,7 +106,111 @@ Flow$SampleTaken <- as.POSIXct(strptime(Flow$SampleTaken, "%Y-%m-%d %H:%M:%S"))
 Flow <- Flow %>% group_by(SampleTaken, SiteName, Measurement) %>%
   summarise(Flow = mean(Flow))
 Flow <- Flow[,c(1,2,4)]
+Flow <- na.omit(Flow)
 
+###############################################################################
+
+#Loop 2 through sites-----------------------------------------------------------
+
+# Create an empty list to store the results
+Load_list <- list()
+
+# Create an empty data frame to store statistics or empty any existing data in the dataframe
+Statistics_Load <- data.frame(
+  site_name = character(),
+  Min = numeric(),
+  Q1 = numeric(),
+  Median = numeric(),
+  Mean = numeric(),
+  Q3 = numeric(),
+  Max = numeric(),
+  Sum = numeric(),
+  stringsAsFactors = FALSE)
+
+# Iterate over sitelist
+for (i in sitelist) { 
+  # Subset Flow for the current SiteName
+  Flow1 <- filter(Flow, SiteName == i)
+  
+  # Assuming 'SiteName' is the key for the lookup
+  lookup_site <- i
+  
+  # Perform lookup to get the corresponding values for regression type
+  lookup_result <- regression[regression$SiteName == lookup_site, c("RegressionType", "Exp_Power", "Exp_X", "X_Squared", "Poly_X", "Poly_Intercept", "Log", "Log_Intercept", "Power_X", "Power_Exp")]
+  
+  # Check if the lookup was successful
+  if (nrow(lookup_result) > 0) {
+    regression_type <- lookup_result$RegressionType
+    
+    if (regression_type == "Exponential") {
+      # Handle exponential regression coefficients
+      Flow1$PredConc <- Flow1$Flow * lookup_result$Exp_Power * exp(lookup_result$Exp_X) 
+    } else if (regression_type == "Polynomial") {
+      # Handle polynomial regression coefficients
+      Flow1$PredConc <- Flow1$Flow^2 * lookup_result$X_Squared + lookup_result$Poly_X * Flow1$Flow + lookup_result$Poly_Intercept
+    } else if (regression_type == "Log") {
+      # Handle log regression coefficients
+      Flow1$PredConc <- lookup_result$Log * log(Flow1$Flow) + lookup_result$Log_Intercept
+    } else if (regression_type == "Power") {
+      # Handle power regression coefficients
+      Flow1$PredConc <- lookup_result$Power_X * Flow1$Flow ^ lookup_result$Power_Exp
+    } else {
+      # Handle other regression types if needed
+    }
+    
+    # Apply regression correction factors
+    Flow1$PredConc <- Flow1$Flow * slope_value 
+    
+    # Take natural log of data
+    # Original: Flow$Flowlog <- log(Flow$Flow)  
+    # Flow1$Flowlog <- Flow1$Flow 
+    # Flow1$concLog <- Flow1$Conc #Calibrate using regression function below.
+    
+    #### Calculates the total time associated with each flow value 
+    Flow1$TimeDiff <- lead(Flow1$SampleTaken)-(Flow1$SampleTaken)
+    # Flow1$DiffSecs <- as.numeric(Flow1$TimeDiff, units = 'secs')
+    Flow1$DiffHours <- as.numeric(Flow1$TimeDiff, units = 'hours')
+    
+    # Apply conversion factor taken from: 
+    # https://geology.humboldt.edu/courses/geology550/550_handouts/suspended_load_computation.pdf  
+    Flow1$Load <- (Flow1$PredConc * Flow1$Flow * Flow1$DiffHours * (0.0864 / 24))
+    
+    # Convert load from mg to T
+    Flow1$Load <- Flow1$Load / 1000000000 
+    
+    # Accumulate load per site
+    Flow1 <- within(Flow1, AccumLoad <- Reduce("+", Load, accumulate = TRUE)) 
+    
+    # Get summary statistics for the current iteration for load
+    summary_stats <- summary(Flow1$Load)
+    
+    # Create a new row with statistics
+    new_row <- data.frame(
+      SiteName = i,
+      Min = round(as.numeric(summary_stats[1]), 2),
+      Q1 = round(as.numeric(summary_stats[2]), 2),
+      Median = round(as.numeric(summary_stats[3]), 2),
+      Mean = round(as.numeric(summary_stats[4]), 2),
+      Q3 = round(as.numeric(summary_stats[5]), 2),
+      Max = round(as.numeric(summary_stats[6]), 2),
+      Sum = sum(Flow1$Load, na.rm = TRUE),
+      stringsAsFactors = FALSE
+    )
+    
+    # Append the current iteration to the Load_list
+    Load_list[[i]] <- Flow1
+    
+    # Append the current iteration to the Statistics_Load
+    Statistics_Load <- rbind(Statistics_Load, new_row)
+  } else {
+    cat("Site not found in the lookup table:", lookup_site, "\n")
+  } 
+}
+
+# Combine the list of data frames into a single data frame
+Load_list <- do.call(rbind, Load_list)
+
+# End loop 2 -------------------------------------------------------------------
 
 #### Export for use in FlowDist & Gendist ######################################
 #### Do not need to do every time
@@ -156,7 +241,7 @@ Flow$SampleTaken <- as.POSIXct(Flow$SampleTaken , format = "%Y-%m-%d %H:%M:%S")
 # Filter out SSC from SS
 merged$Measurement2[merged$Measurement2 == 'Suspended Sediment Concentration'] <- "SSC"
 merged$Measurement2[merged$Measurement2 == 'Suspended Solids'] <- "SS"
-merged1 <- filter(merged, SampleTaken > "2018-03-01" & Measurement2 == 'SSC')
+merged1 <- filter(merged, Measurement2 == 'SSC')
 
 #####  Write out merged1 for external regression analysis ######################
 #write.csv(merged1, file = "I:/306 HCE Project/R_analysis/Rating curves/RatingCurvesGit/Outputs/merged1.csv", row.names = FALSE)
@@ -168,100 +253,24 @@ setwd('I:/306 HCE Project/R_analysis/Rating curves/RatingCurvesGit/Outputs')
 
 ##########################################
 
-# Take natural log of flow data
-#Original: Flow$Flowlog <- log(Flow$Flow)  
-Flow$Flowlog <- Flow$Flow 
+# Remove any N/As from the dataset 
+measure <- merged1 %>%
+  mutate(across(where(is.numeric), ~ ifelse(is.na(.), 0, .)))
 
-# Predict ln (concentration) based on equation calculated in the Sedrate software
-# Original for Tuki: Flow$concLog <- (Flow$Flowlog*1.089-7.004) 
-#Flow$concLog <- (Flow$Flowlog*1.089-6.5) #Calibrated to Tukituki
-#Flow$concLog <- (Flow$Flowlog*1.089) #Calibrated to Aropaoanui
-Flow$concLog <- (Flow$Flowlog) #Calibrate using regression function below.
-# Apply bias correction factor (calculated in Sedrate)
-# Original: Flow$predConc <- exp(Flow$concLog)*1.3
-Flow$predConc <- (Flow$concLog)
-
-# Use lowess to fit a smooth curve
-#  lowess_fit <- lowess(Flow$predConc ~ Flow$Flow)
-
-# Group by SiteName and SampleTaken
-Flow <- Flow %>%
-  group_by(SiteName, SampleTaken)
-
-#### Calculates the total time (seconds) associated with each flow value 
-  Flow <- Flow %>%
-    group_by(SiteName) %>%
-    mutate(time_diff = lead(SampleTaken)-(SampleTaken)) %>% 
-    mutate(diff_secs = as.numeric(time_diff, units = 'secs')) %>%
-    mutate(diff_hours = as.numeric(time_diff, units = 'hours')) 
-
-# Apply conversion factor taken from: 
-# https://geology.humboldt.edu/courses/geology550/550_handouts/suspended_load_computation.pdf  
-Flow$load <- (Flow$predConc*Flow$Flow*Flow$diff_hours*(0.0864 / 24))
-
-# Convert load from mg to T
-Flow$load <- Flow$load/1000000000 
-
-
-
-#Loop 2 through sites-----------------------------------------------------------
+#Loop 3 through sites-----------------------------------------------------------
 for (i in sitelist) { 
 
-#  # Assuming 'SiteName' is the key for the lookup
-#  lookup_site <- i  # Replace with the actual site name you are interested in
-#  # Perform lookup to get the corresponding values (Slope and Intercept)
-#  lookup_result <- subval_regression[subval_regression$SiteName == lookup_site, c("Slope", "Intercept", "Slope_SE")]
-  
-#  # Check if the lookup was successful
-#  if (nrow(lookup_result) > 0) {
-#    # Use the looked-up values in your calculation
-#    slope_value <- lookup_result$Slope
-#    intercept_value <- lookup_result$Intercept
-#    slope_SE_value <- exp(lookup_result$Slope_SE)
-#    #Apply Sedrate correction factors. Currently just calibrated based on Tuki relationship
-#    Flow$concLog <- Flow$Flowlog * slope_value / 2.13 / 1000
-#    Flow$predConc <- Flow$concLog # *slope_SE_value
-#  } else {
-#    cat("Site not found in the lookup table:", lookup_site, "\n")
-#  }
 
-  # Remove any N/As from the dataset 
-  measure <- Flow %>%
-    mutate(across(where(is.numeric), ~ ifelse(is.na(.), 0, .)))
-  # Accumulate load
-  measure <- within(measure, AccumLoad <- Reduce("+", load, accumulate = TRUE)/100)
-  measure$SummaryAllSites <- measure$AccumLoad
-  # Group the data by Site and apply the cumsum function within each group
-  measure <- measure %>%
-    group_by(SiteName) %>%
-    mutate(AccumLoadSite = cumsum(load)/100)
+  # Use lowess to fit a smooth curve
+#  merged1$lowess_fit <- lowess(merged1$predConc ~ merged1$Flow)
+#  print(lowess_fit)
   
+
 ###  Exports  ##################################################################
 
-  measure1 <- filter(measure, SiteName == i)
+  measure1 <- filter(measure, Site == i)
   merged2 <- filter(merged, Site == i)
   merged3 <- filter(merged1, Site == i)
-  # Get summary statistics for the current iteration for load
-  measure1 <- within(measure1, AccumLoad1 <- Reduce("+", load, accumulate = TRUE)/100)
-  measure1$summary1 <- measure1$AccumLoad1
-  summary_stats <- summary(measure1$summary1)
-  
-  # Create a new row with statistics
-  new_row <- data.frame(
-    SiteName = i,
-    Min = round(as.numeric(summary_stats[1]), 2),
-    Q1 = round(as.numeric(summary_stats[2]), 2),
-    Median = round(as.numeric(summary_stats[3]), 2),
-    Mean = round(as.numeric(summary_stats[4]), 2),
-    Q3 = round(as.numeric(summary_stats[5]), 2),
-    Max = round(as.numeric(summary_stats[6]), 2),
-    Sum = sum(measure1$load, na.rm = TRUE),
-    stringsAsFactors = FALSE
-  )
-  
-  # Add the new row to the statistics table
-  statistics_table_ratings <- rbind(statistics_table_ratings, new_row)
-  print(summary_stats)
 
   ###############################
   #Export Flowplot to a PNG file
@@ -321,7 +330,7 @@ for (i in sitelist) {
   dev.off()
   
 }
-#Loop 2 completed---------------------------------------------------------------
+#Loop 3 completed---------------------------------------------------------------
 
 ###### More Outputs  ##########################
 # Print the resulting table
