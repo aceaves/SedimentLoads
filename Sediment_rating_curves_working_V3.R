@@ -107,6 +107,12 @@ Flow <- Flow %>% group_by(SampleTaken, SiteName, Measurement) %>%
   summarise(Flow = mean(Flow))
 Flow <- Flow[,c(1,2,4)]
 Flow <- na.omit(Flow)
+# Omit rows with negative values in columns 1, 2, and 4
+Flow <- Flow[!( Flow[, 3] < 0), ]
+# More data cleaning 
+# Remove rows with dodgy flow for the specified SiteName
+Flow <- subset(Flow, !(SiteName == "Mangamaire Stream at Cooks Tooth Rd" & Flow > 434459))
+Flow <- subset(Flow, !(SiteName == "Waiau River at Ardkeen" & Flow < 100000))
 
 ###############################################################################
 
@@ -135,8 +141,8 @@ for (i in sitelist) {
   # Assuming 'SiteName' is the key for the lookup
   lookup_site <- i
   
-  # Perform lookup to get the corresponding values for regression type
-  lookup_result <- regression[regression$SiteName == lookup_site, c("RegressionType", "Exp_Power", "Exp_X", "X_Squared", "Poly_X", "Poly_Intercept", "Log", "Log_Intercept", "Power_X", "Power_Exp")]
+  # Perform lookup to get the corresponding predicted concentration values for regression type
+  lookup_result <- regression[regression$SiteName == lookup_site, c("RegressionType", "Slope", "Linear_Intercept", "Exp_Power", "Exp_X", "X_Squared", "Poly_X", "Poly_Intercept", "Log", "Log_Intercept", "Power_X", "Power_Exp")]
   
   # Check if the lookup was successful
   if (nrow(lookup_result) > 0) {
@@ -144,39 +150,34 @@ for (i in sitelist) {
     
     if (regression_type == "Exponential") {
       # Handle exponential regression coefficients
-      Flow1$PredConc <- Flow1$Flow * lookup_result$Exp_Power * exp(lookup_result$Exp_X) 
+      Flow1$PredConc <- lookup_result$Exp_Power * exp(lookup_result$Exp_X * Flow1$Flow) 
     } else if (regression_type == "Polynomial") {
       # Handle polynomial regression coefficients
-      Flow1$PredConc <- Flow1$Flow^2 * lookup_result$X_Squared + lookup_result$Poly_X * Flow1$Flow + lookup_result$Poly_Intercept
+      Flow1$PredConc <- lookup_result$X_Squared * Flow1$Flow^2 + lookup_result$Poly_X * Flow1$Flow + lookup_result$Poly_Intercept
     } else if (regression_type == "Log") {
       # Handle log regression coefficients
       Flow1$PredConc <- lookup_result$Log * log(Flow1$Flow) + lookup_result$Log_Intercept
     } else if (regression_type == "Power") {
       # Handle power regression coefficients
       Flow1$PredConc <- lookup_result$Power_X * Flow1$Flow ^ lookup_result$Power_Exp
+    } else if (regression_type == "Linear") {
+      # Handle power regression coefficients
+      Flow1$PredConc <- lookup_result$Slope * Flow1$Flow + lookup_result$Linear_Intercept
     } else {
       # Handle other regression types if needed
     }
     
-    # Apply regression correction factors
-    Flow1$PredConc <- Flow1$Flow * slope_value 
-    
-    # Take natural log of data
-    # Original: Flow$Flowlog <- log(Flow$Flow)  
-    # Flow1$Flowlog <- Flow1$Flow 
-    # Flow1$concLog <- Flow1$Conc #Calibrate using regression function below.
-    
     #### Calculates the total time associated with each flow value 
     Flow1$TimeDiff <- lead(Flow1$SampleTaken)-(Flow1$SampleTaken)
-    # Flow1$DiffSecs <- as.numeric(Flow1$TimeDiff, units = 'secs')
-    Flow1$DiffHours <- as.numeric(Flow1$TimeDiff, units = 'hours')
+    Flow1$DiffSecs <- pmin(as.numeric(Flow1$TimeDiff, units = 'secs'), 3600)
+    Flow1$DiffHours <- pmin(as.numeric(Flow1$TimeDiff, units = 'hours'), 1)
     
     # Apply conversion factor taken from: 
     # https://geology.humboldt.edu/courses/geology550/550_handouts/suspended_load_computation.pdf  
-    Flow1$Load <- (Flow1$PredConc * Flow1$Flow * Flow1$DiffHours * (0.0864 / 24))
+    Flow1$Load <- (Flow1$PredConc * Flow1$Flow/1000 * Flow1$DiffHours * (0.0864 / 24))
     
     # Convert load from mg to T
-    Flow1$Load <- Flow1$Load / 1000000000 
+    #Flow1$Load <- Flow1$Load / 1000000000 
     
     # Accumulate load per site
     Flow1 <- within(Flow1, AccumLoad <- Reduce("+", Load, accumulate = TRUE)) 
@@ -211,6 +212,9 @@ for (i in sitelist) {
 Load_list <- do.call(rbind, Load_list)
 
 # End loop 2 -------------------------------------------------------------------
+
+# Export data to CSV for use in Sedrate
+#write.csv(Load_list, file = "Load_list_Mar2022Mar2023.csv", row.names = FALSE)
 
 #### Export for use in FlowDist & Gendist ######################################
 #### Do not need to do every time
@@ -259,12 +263,6 @@ measure <- merged1 %>%
 
 #Loop 3 through sites-----------------------------------------------------------
 for (i in sitelist) { 
-
-
-  # Use lowess to fit a smooth curve
-#  merged1$lowess_fit <- lowess(merged1$predConc ~ merged1$Flow)
-#  print(lowess_fit)
-  
 
 ###  Exports  ##################################################################
 
