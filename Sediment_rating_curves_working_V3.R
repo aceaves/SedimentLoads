@@ -169,7 +169,7 @@ for (i in sitelist) {
     
     #### Calculates the total time associated with each flow value 
     Flow1$TimeDiff <- lead(Flow1$SampleTaken)-(Flow1$SampleTaken)
-    Flow1$DiffSecs <- pmin(as.numeric(Flow1$TimeDiff, units = 'secs'), 3600)
+  #  Flow1$DiffSecs <- pmin(as.numeric(Flow1$TimeDiff, units = 'secs'), 3600)
     Flow1$DiffHours <- pmin(as.numeric(Flow1$TimeDiff, units = 'hours'), 1)
     
     # Apply conversion factor taken from: 
@@ -258,7 +258,7 @@ setwd('I:/306 HCE Project/R_analysis/Rating curves/RatingCurvesGit/Outputs')
 ##########################################
 
 # Remove any N/As from the dataset 
-measure <- merged1 %>%
+measure <- Load_list %>%
   mutate(across(where(is.numeric), ~ ifelse(is.na(.), 0, .)))
 
 #Loop 3 through sites-----------------------------------------------------------
@@ -266,7 +266,7 @@ for (i in sitelist) {
 
 ###  Exports  ##################################################################
 
-  measure1 <- filter(measure, Site == i)
+  measure1 <- filter(measure, SiteName == i)
   merged2 <- filter(merged, Site == i)
   merged3 <- filter(merged1, Site == i)
 
@@ -278,7 +278,7 @@ for (i in sitelist) {
   Flowplot <- ggplot(data = measure1) +
     geom_path(aes(x = SampleTaken, y = Flow/1000), colour = 'blue', size = 0.4) + 
     scale_x_datetime(date_labels = "%b %Y", date_breaks = "3 months", name = "Date") +
-    scale_y_continuous(labels = comma_format(), name = "Flow (m3/s)")
+    scale_y_continuous(labels = comma_format(), name = "Flow (m"^"3/s"~")")
   
   print(Flowplot)
   dev.off()
@@ -290,10 +290,10 @@ for (i in sitelist) {
   
   SSC <- ggplot(data = measure1) +
     geom_path(data = measure1, aes(x = SampleTaken, y = Flow/1000), colour = "blue", size = 0.4)+
-    geom_point(data = merged2, aes(x = SampleTaken, y = Flow/1000, color = Measurement2), size = 1.5)+
-    scale_color_manual(values = c("#009E73",'coral1'), name = "Sample Type")+
+    geom_line(data = measure1, aes(x = SampleTaken, y = PredConc), colour = 'darkgoldenrod') +
+
     scale_x_datetime(date_labels = "%b %Y", date_breaks = "3 months", name = "Date") +
-    scale_y_continuous(labels = comma_format(),  name = "Flow (m3/s)")
+    scale_y_continuous(labels = comma_format(),  name = "Flow (m"^"3/s"~")", sec.axis = sec_axis(~./1, name = "SSC (mg/l)"))
   
   print(SSC)
   dev.off()
@@ -304,10 +304,10 @@ for (i in sitelist) {
   png(filename, width=1200, height=800)
   
   CUMSSC <- ggplot(data = measure1) +
-    geom_line(data = measure1, aes(x = SampleTaken, y = predConc), colour = 'darkgoldenrod') +
-    geom_line(data = measure1, aes(x = SampleTaken, y = summary1*0.1), colour = 'red')+
+    geom_line(data = measure1, aes(x = SampleTaken, y = PredConc), colour = 'darkgoldenrod') +
+    geom_line(data = measure1, aes(x = SampleTaken, y = AccumLoad), colour = 'coral1')+
     scale_x_datetime(date_labels = "%b %Y", date_breaks = "3 months", name = "Date") +
-    scale_y_continuous(name = "SSC (mg/l)",expand = c(0,0,0.2,2), sec.axis = sec_axis(~./0.1, name = "Cumulative sediment (T)"))
+    scale_y_continuous(name = "SSC (mg/l)",expand = c(0,0,0.2,2), sec.axis = sec_axis(~./1, name = "Cumulative sediment (T)"))
   
   print(CUMSSC)
   dev.off()
@@ -318,11 +318,10 @@ for (i in sitelist) {
   png(filename, width=1200, height=800)
   
   CUMSSC2 <- ggplot(data = measure1) +
-    geom_line(data = measure1, aes(x = SampleTaken, y = predConc), colour = 'darkgoldenrod') +
-    geom_point(data = merged3, aes(x = SampleTaken, y = Conc, color = Measurement2),colour = 'coral1', size = 1.5)+
-    geom_line(data = measure1, aes(x = SampleTaken, y = summary1*1), colour = 'red')+
+    geom_line(data = measure1, aes(x = SampleTaken, y = PredConc), colour = 'darkgoldenrod') +
+    geom_point(data = merged3, aes(x = SampleTaken, y = Conc, color = Measurement2),colour = 'aquamarine4', size = 1.5)+
     scale_x_datetime(date_labels = "%b %Y", date_breaks = "3 months", name = "Date") +
-    scale_y_continuous(name = "SSC (mg/l)",expand = c(0,0,0.2,2), sec.axis = sec_axis(~./1, name = "Cumulative sediment (T)"))
+    scale_y_continuous(name = "SSC (mg/l)",expand = c(0,0,0.2,2))
   
   print(CUMSSC2)
   dev.off()
@@ -338,8 +337,11 @@ measure <- measure[complete.cases(measure$SampleTaken), ]
 measure$Flow <- measure$Flow/1000
 write.csv(statistics_table_ratings, file = "statistics_table_ratings.csv", row.names = FALSE)
 
-write.csv(measure, file = "measure.csv", row.names = FALSE)
 #Write also to app directory for Shiny
-write.csv(measure, file = "I:/306 HCE Project/R_analysis/Rating curves/RatingCurvesGit/app/measure.csv", row.names = FALSE)
+measure2 <- filter(measure, SiteName != "Aropaoanui River at Aropaoanui" 
+                   & SiteName != "Karamu Stream at Floodgates" 
+                   & SiteName != "Mangakuri River at Nilsson Road"
+                   & SiteName != "Wharerangi Stream at Codds")
+write.csv(measure2, file = "I:/306 HCE Project/R_analysis/Rating curves/RatingCurvesGit/app/measure.csv", row.names = FALSE)
 
 ################################################################################
