@@ -30,8 +30,13 @@ sitelist <- unique(df$SiteName)
 
 # ggplot code
 ggplot_code <- function(df2, input_df) {
+  line_color <- ifelse(input_df == "Flow", "blue3",
+                       ifelse(input_df == "PredConc", "darkgoldenrod",
+                              ifelse(input_df == "Load", "saddlebrown",
+                                     ifelse(input_df == "AccumLoad", "darkred", NA))))
   ggplot(data = df2, aes(x = SampleTaken, y = .data[[input_df]])) +
-    geom_line(colour = 'darkgoldenrod') +
+    #geom_line(colour = 'darkgoldenrod') +
+    geom_line(colour = line_color) +
     theme_bw() +
     scale_x_datetime(date_labels = "%b %Y", date_breaks = "1 month") +
     scale_y_continuous(labels = scales::comma_format()) +
@@ -42,6 +47,7 @@ ggplot_code <- function(df2, input_df) {
     ) +
     xlab('Date') + ylab(paste(input_df))
 }
+
 
 # Define UI for the app
 ui <- fluidPage(
@@ -61,30 +67,28 @@ ui <- fluidPage(
     "))
   ),
   fluidRow(
-#    column(12, align = "center", "Your Shiny App Content Goes Here"),
-#    column(12, align = "center", "More Shiny App Content")
-  ),
-  # Footer with logo and copyright
-  tags$div(
-    style = "text-align: center; margin-bottom: 20px; color: #777;",
-#    tags$div(
-#      class = "logo",
-#      img(src = "app/images/HBRC-RGB.png", alt = "Company Logo", style = "max-width: 100px;")
-#    ),
-    HTML("<p>© 2024 Hawke's Bay Regional Council. All rights reserved.</p>")
-  ),
+ #   column(12, align = "center", "Shiny App developed by Land Science for the ISCO Programme"),
+      ),
+ # Footer with logo and copyright
+ tags$div(
+   style = "text-align: center; color: #777; position: fixed; bottom: 0; left: 0; width: 100%;",
+   tags$div(
+     class = "logo",
+     img(src = "https://raw.githubusercontent.com/aceaves/SedimentRatingCurves/main/app/HBRC-RGB.jpg", alt = "Company Logo", style = "max-width: 175px;")
+   ),
+   HTML("<p>© 2024 Hawke's Bay Regional Council. All rights reserved.</p>")
+ ),
   
-  titlePanel("HBRC - Sediment Concentration Plots, Flow & Load Summary"),
+ titlePanel(div("HBRC - Sediment Concentration Plots, Flow & Load Summary", style = "color: #8B6508")),
   
   sidebarLayout(
     sidebarPanel(
       selectInput("SiteName", "Site Name:", c(sitelist)),
       selectInput("df", "Measurement:",
                   c("Flow (m³/s)" = "Flow",
-                    "Predicted Concentration SSC (mg/l)" = "predConc",
-                    "Load SSC (mg)" = "load",
-                    "Accumulated Load (T)" = "AccumLoadSite",
-                    "Summary Load All Sites (T)" = "SummaryAllSites")),
+                    "Predicted Concentration SSC (mg/l)" = "PredConc",
+                    "Sediment Load (T)" = "Load",
+                    "Accumulated Load (T)" = "AccumLoad")),
       dateRangeInput("dater","Date range:",start=df$SampleTaken[1],end=df$SampleTaken[nrow(df)]),
       selectInput("popup_selector", "Select Popup to Zoom", choices = unique(markers_data$popup))
     ),
@@ -102,10 +106,11 @@ server <- function(input, output) {
     paste("Measurement ~", input$df, " | Site ~", input$SiteName)
   })
   
+
+  # Shiny app renderPlot
   output$Plot <- renderPlotly({
     df1 <- subset(df, SiteName == input$SiteName)
     df2 <- df1[df1$SampleTaken >= as.POSIXct(input$dater[1]) & df1$SampleTaken <= as.POSIXct(input$dater[2]),]
-    
     ggplot_code(df2, input$df) %>%
       ggplotly()
   })

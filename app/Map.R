@@ -7,7 +7,7 @@ library(leaflet)
 library(dplyr)
 
 # Map dataset
-markers_data <- read.csv("I:/306 HCE Project/R_analysis/Rating curves/RatingCurvesGit/app/markers.csv")
+markers_data <- read.csv("markers.csv")
 
 ui <- fluidPage(
   selectInput("popup_selector", "Select Popup to Zoom", choices = unique(markers_data$popup)),
