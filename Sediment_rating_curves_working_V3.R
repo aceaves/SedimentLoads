@@ -101,8 +101,6 @@ melt$SampleTaken <-  lubridate::floor_date(melt$SampleTaken, "15 minutes")
 
 Flow <- filter(melt, Measurement == "Flow")
 Flow$Flow <- as.numeric(Flow$Flow, na.rm = TRUE)
-# Convert SampleTaken to POSIXct
-Flow$SampleTaken <- as.POSIXct(strptime(Flow$SampleTaken, "%Y-%m-%d %H:%M:%S"))
 Flow <- Flow %>% group_by(SampleTaken, SiteName, Measurement) %>%
   summarise(Flow = mean(Flow))
 Flow <- Flow[,c(1,2,4)]
@@ -170,7 +168,7 @@ for (i in sitelist) {
     #### Calculates the total time associated with each flow value 
     Flow1$TimeDiff <- lead(Flow1$SampleTaken)-(Flow1$SampleTaken)
   #  Flow1$DiffSecs <- pmin(as.numeric(Flow1$TimeDiff, units = 'secs'), 3600)
-    Flow1$DiffHours <- pmin(as.numeric(Flow1$TimeDiff, units = 'hours'), 1)
+    Flow1$DiffHours <- pmin(as.numeric(Flow1$TimeDiff, units = 'hours'), 0.25)
     
     # Apply conversion factor taken from: 
     # https://geology.humboldt.edu/courses/geology550/550_handouts/suspended_load_computation.pdf  
