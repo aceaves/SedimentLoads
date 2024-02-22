@@ -49,7 +49,7 @@ sitelist <- SiteList(dfile, "")
 Hilltop::SiteList(dfile)
 
 # Date range. 
-date1 <- "01-March-2022 00:00:00"
+date1 <- "01-March-2018 00:00:00"
 date2 <- "01-March-2023 00:00:00"
 
 #Measurements/data that we want to pull from the Hilltop file 
@@ -331,17 +331,19 @@ for (i in sitelist) {
 
 ###### More Outputs  ##########################
 # Print the resulting table
-print(statistics_table_ratings)
+print(Statistics_Load)
 #Table outputs
 measure <- measure[complete.cases(measure$SampleTaken), ]
 measure$Flow <- measure$Flow/1000
-write.csv(statistics_table_ratings, file = "statistics_table_ratings.csv", row.names = FALSE)
+write.csv(Statistics_Load, file = "Statistics_Load_Mar2018_Mar2023.csv", row.names = FALSE)
 
 #Write also to app directory for Shiny
 measure2 <- filter(measure, SiteName != "Aropaoanui River at Aropaoanui" 
                    & SiteName != "Karamu Stream at Floodgates" 
-                   & SiteName != "Mangakuri River at Nilsson Road"
-                   & SiteName != "Wharerangi Stream at Codds")
-write.csv(measure2, file = "I:/306 HCE Project/R_analysis/Rating curves/RatingCurvesGit/app/measure.csv", row.names = FALSE)
+                   & SiteName != "Mangakuri River at Nilsson Road"
+                   & SiteName != "Mangaone River at Rissington"
+                   & SiteName != "Wharerangi Stream at Codds")
+measure2 <- measure2[,c(1,2,3,4,6,7,8)]
+write.csv(measure2, file = "I:/306 HCE Project/R_analysis/Rating curves/RatingCurvesGit/Outputs/measure_Mar2018_June2023.csv", row.names = FALSE)
 
 ################################################################################
