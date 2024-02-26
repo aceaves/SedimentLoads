@@ -87,7 +87,7 @@ ui <- fluidPage(
       selectInput("df", "Measurement:",
                   c("Flow (m³/s)" = "Flow",
                     "Predicted Concentration SSC (mg/l)" = "PredConc",
-                    "Sediment Load (T)" = "Load",
+                    "Sediment Load (T/s)" = "Load",
                     "Accumulated Load (T)" = "AccumLoad")),
       dateRangeInput("dater","Date range:",start=df$SampleTaken[1],end=df$SampleTaken[nrow(df)]),
       selectInput("popup_selector", "Select Popup to Zoom", choices = unique(markers_data$popup))

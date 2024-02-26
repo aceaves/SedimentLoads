@@ -73,22 +73,23 @@ site_id <- sitelist
 
 method <- ""
 interval <- ""
-  
+
 for(j in 1:site_no){
-    Multiple_sites <- GetData(dfile, site_id[j] ,measurement, date1, date2) 
-    # You will struggle to use this format in most packages 
-    # do this to make it more useful
+  Multiple_sites <- GetData(dfile, site_id[j] ,measurement, date1, date2) 
+  # You will struggle to use this format in most packages 
+  # do this to make it more useful
   Multiple_sites_id <- do.call(rbind, lapply(Multiple_sites, function(x) cbind(zoo::fortify.zoo(x),
-                                                                                SiteName = attr(x, 'SiteName'), Measurement = attr(x, 'Measurement')))) %>% 
+                                                                               SiteName = attr(x, 'SiteName'), Measurement = attr(x, 'Measurement')))) %>% 
     dplyr::rename(zoodata='x') %>% 
     dplyr::rename(Site=SiteName)
-    
+  
   if(j==1){
     melt <- Multiple_sites_id } 
   else
   {melt<- rbind(melt, Multiple_sites_id)
   }
 }
+
 # End loop 1 -------------------------------------------------------------------
 
 # Rename column names for the new dataframe called 'melt' 
@@ -97,6 +98,7 @@ colnames(melt) <- c("SampleTaken", "Flow", "SiteName","Measurement")
 # Data pulled from Hilltop has different time frequencies. 
 # The aggregate function is used to aggregate data to 15 minute intervals.
 melt$SampleTaken <-  lubridate::floor_date(melt$SampleTaken, "15 minutes")
+melt$SampleTaken <- as.POSIXct(melt$SampleTaken, format = "%Y-%m-%d %H:%M:%S", na.rm = TRUE)
 
 
 Flow <- filter(melt, Measurement == "Flow")
@@ -104,7 +106,7 @@ Flow$Flow <- as.numeric(Flow$Flow, na.rm = TRUE)
 Flow <- Flow %>% group_by(SampleTaken, SiteName, Measurement) %>%
   summarise(Flow = mean(Flow))
 Flow <- Flow[,c(1,2,4)]
-Flow <- na.omit(Flow)
+#Flow <- na.omit(Flow)
 # Omit rows with negative values in columns 1, 2, and 4
 Flow <- Flow[!( Flow[, 3] < 0), ]
 # More data cleaning 
@@ -167,18 +169,22 @@ for (i in sitelist) {
     
     #### Calculates the total time associated with each flow value 
     Flow1$TimeDiff <- lead(Flow1$SampleTaken)-(Flow1$SampleTaken)
-  #  Flow1$DiffSecs <- pmin(as.numeric(Flow1$TimeDiff, units = 'secs'), 3600)
+    # Replace NA values with 900
+    Flow1$TimeDiff[is.na(Flow1$TimeDiff)] <- 900
+        # Set values greater than 900 to 900
+    Flow1$TimeDiff[Flow1$TimeDiff > 900] <- 900
+    Flow1$DiffSecs <- as.numeric(Flow1$TimeDiff, units = 'secs')
     Flow1$DiffHours <- pmin(as.numeric(Flow1$TimeDiff, units = 'hours'), 0.25)
-    
+
     # Apply conversion factor taken from: 
     # https://geology.humboldt.edu/courses/geology550/550_handouts/suspended_load_computation.pdf  
-    Flow1$Load <- (Flow1$PredConc * Flow1$Flow/1000 * Flow1$DiffHours * (0.0864 / 24))
-    
+    #Flow1$Load <- (Flow1$PredConc * Flow1$Flow/1000 * Flow1$DiffHours * (0.0864 / 24))
+    Flow1$Load <- (Flow1$PredConc * Flow1$Flow)
     # Convert load from mg to T
-    #Flow1$Load <- Flow1$Load / 1000000000 
+    Flow1$Load <- Flow1$Load / 1000000000 
     
     # Accumulate load per site
-    Flow1 <- within(Flow1, AccumLoad <- Reduce("+", Load, accumulate = TRUE)) 
+    Flow1 <- within(Flow1, AccumLoad <- Reduce("+", Load*Flow1$DiffSecs, accumulate = TRUE)) 
     
     # Get summary statistics for the current iteration for load
     summary_stats <- summary(Flow1$Load)
@@ -192,7 +198,7 @@ for (i in sitelist) {
       Mean = round(as.numeric(summary_stats[4]), 2),
       Q3 = round(as.numeric(summary_stats[5]), 2),
       Max = round(as.numeric(summary_stats[6]), 2),
-      Sum = sum(Flow1$Load, na.rm = TRUE),
+      Sum = tail(Flow1$AccumLoad, 1),
       stringsAsFactors = FALSE
     )
     
@@ -223,6 +229,8 @@ Load_list <- do.call(rbind, Load_list)
 #write.csv(Flow, file = "Flow_Mar2018Mar2023.csv", row.names = FALSE)
 
 ################################################################################
+
+measure <- Load_list
   
 SSC <- filter(melt, Measurement %in% c("Suspended Sediment Concentration", "Suspended Solids"))
 SSC <- as.data.frame(sapply(SSC, gsub, pattern = "<|>", replacement = ""))
@@ -254,10 +262,6 @@ merged1 <- filter(merged, Measurement2 == 'SSC')
 setwd('I:/306 HCE Project/R_analysis/Rating curves/RatingCurvesGit/Outputs')
 
 ##########################################
-
-# Remove any N/As from the dataset 
-measure <- Load_list %>%
-  mutate(across(where(is.numeric), ~ ifelse(is.na(.), 0, .)))
 
 #Loop 3 through sites-----------------------------------------------------------
 for (i in sitelist) { 
@@ -330,18 +334,17 @@ for (i in sitelist) {
 ###### More Outputs  ##########################
 # Print the resulting table
 print(Statistics_Load)
+
 #Table outputs
-measure <- measure[complete.cases(measure$SampleTaken), ]
-measure$Flow <- measure$Flow/1000
 write.csv(Statistics_Load, file = "Statistics_Load_Mar2018_Mar2023.csv", row.names = FALSE)
 
-#Write also to app directory for Shiny
+measure$Flow <- measure$Flow/1000
 measure2 <- filter(measure, SiteName != "Aropaoanui River at Aropaoanui" 
                    & SiteName != "Karamu Stream at Floodgates" 
                    & SiteName != "Mangakuri River at Nilsson Road"
                    & SiteName != "Mangaone River at Rissington"
                    & SiteName != "Wharerangi Stream at Codds")
-measure2 <- measure2[,c(1,2,3,4,6,7,8)]
+measure2 <- measure2[,c(1,2,3,4,8,9)]
 write.csv(measure2, file = "I:/306 HCE Project/R_analysis/Rating curves/RatingCurvesGit/Outputs/measure_Mar2018_June2023.csv", row.names = FALSE)
 
 ################################################################################
