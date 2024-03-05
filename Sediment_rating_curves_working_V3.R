@@ -167,6 +167,9 @@ for (i in sitelist) {
       # Handle other regression types if needed
     }
     
+    # Remove negative values from regressions
+    Flow1$PredConc[Flow1$PredConc < 0] <- 0
+    
     #### Calculates the total time associated with each flow value 
     Flow1$TimeDiff <- lead(Flow1$SampleTaken)-(Flow1$SampleTaken)
     # Replace NA values with 900
