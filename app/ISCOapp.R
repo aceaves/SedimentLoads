@@ -18,10 +18,14 @@ library(dygraphs)
 library(plotly)
 library(leaflet)
 library(dplyr)
+library(sf)
 
 # Load map dataset
 #markers_data <- read.csv("I:/306 HCE Project/R_analysis/Rating curves/RatingCurvesGit/app/markers.csv")
 markers_data <- read.csv("markers.csv")
+# Read shapefile of catchment areas
+catchment_polygons <- st_read("ISCO_HBRC_REC2_Catchment_Area_2023_Selection.shp")
+str(catchment_polygons)
 
 # Load sediment concentration data
 df <- read_csv("https://media.githubusercontent.com/media/aceaves/SedimentRatingCurves/main/app/measure.csv")
@@ -140,6 +144,7 @@ server <- function(input, output) {
         addProviderTiles("Esri.WorldImagery") %>%  # Satellite imagery
         addProviderTiles("Esri.WorldStreetMap", group = "Labels") %>%  # Street labels
         addMarkers(data = markers_data, lat = ~lat, lng = ~lon, popup = ~popup) %>%
+        addPolygons(data = catchment_polygons, fillColor = "orange", fillOpacity = 0.5, popup = ~SiteName) %>%
         fitBounds(all_markers_bounds$lng1, all_markers_bounds$lat1, all_markers_bounds$lng2, all_markers_bounds$lat2) %>%
         addLayersControl(baseGroups = c("Esri.WorldImagery", "Labels"))
     } else {
@@ -149,6 +154,7 @@ server <- function(input, output) {
         addProviderTiles("Esri.WorldImagery") %>%  # Satellite imagery
         addProviderTiles("Esri.WorldStreetMap", group = "Labels") %>%  # Street labels
         addMarkers(data = markers_data, lat = ~lat, lng = ~lon, popup = ~popup) %>%
+        addPolygons(data = catchment_polygons, fillColor = "orange", fillOpacity = 0.5, popup = ~SiteName) %>%
         addLayersControl(baseGroups = c("Esri.WorldImagery", "Labels"))
     }
   })

@@ -49,7 +49,7 @@ sitelist <- SiteList(dfile, "")
 Hilltop::SiteList(dfile)
 
 # Date range. 
-date1 <- "01-March-2021 00:00:00"
+date1 <- "01-March-2018 00:00:00"
 date2 <- "01-March-2023 00:00:00"
 
 #Measurements/data that we want to pull from the Hilltop file 
@@ -339,7 +339,7 @@ for (i in sitelist) {
 print(Statistics_Load)
 
 #Table outputs
-write.csv(Statistics_Load, file = "Statistics_Load_Mar2021_Mar2023.csv", row.names = FALSE)
+write.csv(Statistics_Load, file = "Statistics_Load_Mar2018_Mar2023.csv", row.names = FALSE)
 
 measure$Flow <- measure$Flow/1000
 measure2 <- filter(measure, SiteName != "Aropaoanui River at Aropaoanui" 
@@ -348,6 +348,6 @@ measure2 <- filter(measure, SiteName != "Aropaoanui River at Aropaoanui"
                    & SiteName != "Mangaone River at Rissington"
                    & SiteName != "Wharerangi Stream at Codds")
 measure2 <- measure2[,c(1,2,3,4,8,9)]
-write.csv(measure2, file = "I:/306 HCE Project/R_analysis/Rating curves/RatingCurvesGit/Outputs/measure_Mar2021_June2023.csv", row.names = FALSE)
+write.csv(measure2, file = "I:/306 HCE Project/R_analysis/Rating curves/RatingCurvesGit/Outputs/measure_Mar2018_June2023.csv", row.names = FALSE)
 
 ################################################################################
