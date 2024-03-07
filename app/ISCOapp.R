@@ -19,13 +19,13 @@ library(plotly)
 library(leaflet)
 library(dplyr)
 library(sf)
+library(shinyWidgets)
 
 # Load map dataset
 #markers_data <- read.csv("I:/306 HCE Project/R_analysis/Rating curves/RatingCurvesGit/app/markers.csv")
 markers_data <- read.csv("markers.csv")
 # Read shapefile of catchment areas
 catchment_polygons <- st_read("ISCO_HBRC_REC2_Catchment_Area_2023_Selection.shp")
-str(catchment_polygons)
 
 # Load sediment concentration data
 df <- read_csv("https://media.githubusercontent.com/media/aceaves/SedimentRatingCurves/main/app/measure.csv")
@@ -85,17 +85,16 @@ ui <- fluidPage(
   
  titlePanel(div("HBRC - Sediment Concentration Plots, Flow & Load Summary", style = "color: #8B6508")),
   
-  sidebarLayout(
-    sidebarPanel(
-      selectInput("SiteName", "Site Name:", c(sitelist)),
-      selectInput("df", "Measurement:",
-                  c("Flow (m³/s)" = "Flow",
-                    "Predicted Concentration SSC (mg/l)" = "PredConc",
-                    "Sediment Load (T/s)" = "Load",
-                    "Accumulated Load (T)" = "AccumLoad")),
-      dateRangeInput("dater","Date range:",start=df$SampleTaken[1],end=df$SampleTaken[nrow(df)]),
-      selectInput("popup_selector", "Select Popup to Zoom", choices = unique(markers_data$popup))
-    ),
+ sidebarLayout(
+   sidebarPanel(
+     selectInput("SiteName", "Site Name:", c(sitelist)),
+     selectInput("df", "Measurement:",
+                 c("Flow (m³/s)" = "Flow",
+                   "Predicted Concentration SSC (mg/l)" = "PredConc",
+                   "Sediment Load (T/s)" = "Load",
+                   "Accumulated Load (T)" = "AccumLoad")),
+     dateRangeInput("dater","Date range:",start=df$SampleTaken[1],end=df$SampleTaken[nrow(df)]),
+   ),
     mainPanel(
       verbatimTextOutput("caption"),
       plotlyOutput("Plot"),
@@ -164,9 +163,25 @@ server <- function(input, output) {
       leafletProxy("map") %>%
         flyTo(lng = markers_data$lon[markers_data$popup == selected_popup], 
               lat = markers_data$lat[markers_data$popup == selected_popup], 
-              zoom = 15)
+              zoom = 14)
     }
   })
+  observe({
+    selected_site <- input$SiteName
+    if (!is.null(selected_site)) {
+      leafletProxy("map") %>%
+        flyTo(lng = markers_data$lon[markers_data$popup == input$SiteName], 
+              lat = markers_data$lat[markers_data$popup == input$SiteName], 
+              zoom = 14)
+    }
+  })
+  observeEvent(input$SiteName, {
+    leafletProxy("map") %>%
+      flyTo(lng = markers_data$lon[markers_data$popup == input$SiteName], 
+            lat = markers_data$lat[markers_data$popup == input$SiteName], 
+            zoom = 14)
+  })
+  
 }
 
 ##### Turn on ONE of the options below:
