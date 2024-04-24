@@ -25,7 +25,7 @@ library(ggtext)
 #Get flow data #################################################################
 
 #Set file path to ISCO Hilltop file 
-dfile <- HilltopData("I:/306 HCE Project/Sites/ISCO_Processing.dsn")
+dfile <- HilltopData("I:/306 HCE Project/Hilltop/ISCO_Processing.dsn")
 #dfile <- HilltopData("N:/HilltopData/EMAR/EMARFull.dsn")
 
 # Get measurement list for respective sites 
@@ -34,7 +34,7 @@ Hilltop::SiteList(dfile)
 
 # Date range. 
 date1 <- "01-February-2018 00:00:00"
-date2 <- "01-December-2023 00:00:00"
+date2 <- "12-February-2023 00:00:00"
 
 #Measurements/data that we want to pull from the Hilltop file 
 measurement <- c(	'Suspended Solids [Suspended Solids]','Suspended Sediment Concentration', "Flow")

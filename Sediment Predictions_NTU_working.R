@@ -14,7 +14,7 @@ library(plotly)
 
 
 #set file path to ISCO Hilltop file 
-dfile <- HilltopData("I:/306 HCE Project/Sites/ISCO_Processing.dsn")
+dfile <- HilltopData("I:/306 HCE Project/Hilltop/ISCO_Processing.dsn")
 
 # Get measurement list for respective sites 
 #measurementlist <- Hilltop::MeasurementList(dfile,"Tukituki River at Red Bridge")

@@ -20,28 +20,10 @@ library(readxl)
 # Set the locale to ensure proper date-time parsing
 Sys.setlocale("LC_TIME", "C")
 
-################################################################################
-#Set up task scheduler
-
-# # Set the path to the Rscript.exe file
-# rscript_path <- file.path(R.home("bin"), "x64", "C:/Program Files/R/R-4.2.3/bin/x64/Rscript.exe")
-# 
-# # Set the path to the R script to be scheduled
-# script_path <- "M:/E_Science/Projects/306 HCE Project/R_analysis/Rating curves/git/Sediment_rating_curves_working.R"
-# 
-# # Schedule the R script to run weekly at 7:00 AM
-# taskscheduler_create(taskname = "My R Script",
-#                      rscript = rscript_path,
-#                      args = script_path,
-#                      schedule = "WeekLY",
-#                      starttime = "07:00",
-#                      startdate = format(Sys.Date(), "%Y-%m-%d"))
-
-################################################################################
 ############ Data inputs  ################
 
 #Set file path to ISCO Hilltop file 
-dfile <- HilltopData("I:/306 HCE Project/Sites/ISCO_Processing.dsn")
+dfile <- HilltopData("I:/306 HCE Project/Hilltop/ISCO_Processing.dsn")
 #dfile <- HilltopData("N:/HilltopData/EMAR/EMARFull.dsn")
 
 # Get site list or measurement list for respective sites 
@@ -49,8 +31,8 @@ sitelist <- SiteList(dfile, "")
 Hilltop::SiteList(dfile)
 
 # Date range. 
-date1 <- "01-March-2018 00:00:00"
-date2 <- "01-March-2023 00:00:00"
+date1 <- "01-July-2019 00:00:00"
+date2 <- "01-July-2020 00:00:00"
 
 #Measurements/data that we want to pull from the Hilltop file 
 measurement <- c(	'Suspended Solids [Suspended Solids]','Suspended Sediment Concentration', "Flow")  
@@ -74,21 +56,45 @@ site_id <- sitelist
 method <- ""
 interval <- ""
 
-for(j in 1:site_no){
-  Multiple_sites <- GetData(dfile, site_id[j] ,measurement, date1, date2) 
-  # You will struggle to use this format in most packages 
-  # do this to make it more useful
-  Multiple_sites_id <- do.call(rbind, lapply(Multiple_sites, function(x) cbind(zoo::fortify.zoo(x),
-                                                                               SiteName = attr(x, 'SiteName'), Measurement = attr(x, 'Measurement')))) %>% 
-    dplyr::rename(zoodata='x') %>% 
-    dplyr::rename(Site=SiteName)
+# Initialize 'melt' before the loop if not already initialized
+melt <- NULL
+
+for (j in 1:site_no) {
+  Multiple_sites <- GetData(dfile, site_id[j], measurement, date1, date2)
+  print(paste("Data for site", site_id[j], ":", length(Multiple_sites)))
   
-  if(j==1){
-    melt <- Multiple_sites_id } 
-  else
-  {melt<- rbind(melt, Multiple_sites_id)
+  # Process only if Multiple_sites is not null and has elements
+  if (!is.null(Multiple_sites) && length(Multiple_sites) > 0) {
+    processed_sites <- lapply(Multiple_sites, function(x) {
+      if (NROW(x) > 0) {  # Ensure that x has rows
+        cbind(zoo::fortify.zoo(x), SiteName = attr(x, 'SiteName'), Measurement = attr(x, 'Measurement'))
+      } else {
+        NULL  # Return NULL if x is empty
+      }
+    })
+    
+    # Filter out NULL entries before attempting to rbind
+    processed_sites <- Filter(NROW, processed_sites)
+    
+    if (length(processed_sites) > 0) {
+      Multiple_sites_id <- do.call(rbind, processed_sites) %>%
+        dplyr::rename(zoodata = 'x') %>%
+        dplyr::rename(Site = SiteName)
+      
+      # Initialize or bind to 'melt'
+      if (is.null(melt)) {
+        melt <- Multiple_sites_id
+      } else {
+        melt <- rbind(melt, Multiple_sites_id)
+      }
+    } else {
+      warning(paste("Processed data is empty for site", site_id[j], "in iteration", j))
+    }
+  } else {
+    warning(paste("No data for site", site_id[j], "in iteration", j))
   }
 }
+
 
 # End loop 1 -------------------------------------------------------------------
 
@@ -136,7 +142,7 @@ Statistics_Load <- data.frame(
 # Iterate over sitelist
 for (i in sitelist) { 
   # Subset Flow for the current SiteName
-  Flow1 <- filter(Flow, SiteName == i)
+  Flow1 <- dplyr::filter(Flow, SiteName == i)
   
   # Assuming 'SiteName' is the key for the lookup
   lookup_site <- i
@@ -148,75 +154,94 @@ for (i in sitelist) {
   if (nrow(lookup_result) > 0) {
     regression_type <- lookup_result$RegressionType
     
+    # Process according to regression type
     if (regression_type == "Exponential") {
-      # Handle exponential regression coefficients
-      Flow1$PredConc <- lookup_result$Exp_Power * exp(lookup_result$Exp_X * Flow1$Flow) 
+      Flow1$PredConc <- lookup_result$Exp_Power * exp(lookup_result$Exp_X * Flow1$Flow)
     } else if (regression_type == "Polynomial") {
-      # Handle polynomial regression coefficients
       Flow1$PredConc <- lookup_result$X_Squared * Flow1$Flow^2 + lookup_result$Poly_X * Flow1$Flow + lookup_result$Poly_Intercept
     } else if (regression_type == "Log") {
-      # Handle log regression coefficients
       Flow1$PredConc <- lookup_result$Log * log(Flow1$Flow) + lookup_result$Log_Intercept
     } else if (regression_type == "Power") {
-      # Handle power regression coefficients
       Flow1$PredConc <- lookup_result$Power_X * Flow1$Flow ^ lookup_result$Power_Exp
     } else if (regression_type == "Linear") {
-      # Handle power regression coefficients
       Flow1$PredConc <- lookup_result$Slope * Flow1$Flow + lookup_result$Linear_Intercept
-    } else {
-      # Handle other regression types if needed
-    }
+    } 
     
     # Remove negative values from regressions
     Flow1$PredConc[Flow1$PredConc < 0] <- 0
     
-    #### Calculates the total time associated with each flow value 
-    Flow1$TimeDiff <- lead(Flow1$SampleTaken)-(Flow1$SampleTaken)
-    # Replace NA values with 900
+    # Calculate the total time associated with each flow value
+    Flow1$TimeDiff <- dplyr::lead(Flow1$SampleTaken) - Flow1$SampleTaken
     Flow1$TimeDiff[is.na(Flow1$TimeDiff)] <- 900
-        # Set values greater than 900 to 900
     Flow1$TimeDiff[Flow1$TimeDiff > 900] <- 900
+    
+    # Convert time differences
     Flow1$DiffSecs <- as.numeric(Flow1$TimeDiff, units = 'secs')
     Flow1$DiffHours <- pmin(as.numeric(Flow1$TimeDiff, units = 'hours'), 0.25)
-
-    # Apply conversion factor taken from: 
-    # https://geology.humboldt.edu/courses/geology550/550_handouts/suspended_load_computation.pdf  
-    #Flow1$Load <- (Flow1$PredConc * Flow1$Flow/1000 * Flow1$DiffHours * (0.0864 / 24))
-    Flow1$Load <- (Flow1$PredConc * Flow1$Flow)
-    # Convert load from mg to T
-    Flow1$Load <- Flow1$Load / 1000000000 
     
-    # Accumulate load per site
-    Flow1 <- within(Flow1, AccumLoad <- Reduce("+", Load*Flow1$DiffSecs, accumulate = TRUE)) 
+    # Calculate Load
+    Flow1$Load <- Flow1$PredConc * Flow1$Flow
+    Flow1$Load <- Flow1$Load / 1000000000  # Convert load from mg to T
+    
+    # Initialize AccumLoad and calculate it
+    Flow1$AccumLoad <- numeric(nrow(Flow1))
+    if (length(Flow1$Load) > 0) {
+      Flow1$AccumLoad <- Reduce("+", Flow1$Load * Flow1$DiffSecs, accumulate = TRUE)
+    }
     
     # Get summary statistics for the current iteration for load
-    summary_stats <- summary(Flow1$Load)
+    if (!is.null(Flow1$Load) && length(Flow1$Load) > 0 && !all(is.na(Flow1$Load))) {
+      summary_stats <- summary(Flow1$Load)
+      min_val <- round(as.numeric(summary_stats[1]), 2) if (!is.na(min_val)) min_val else NA
+      q1_val <- round(as.numeric(summary_stats[2]), 2) if (!is.na(q1_val)) q1_val else NA
+      median_val <- round(as.numeric(summary_stats[3]), 2) if (!is.na(median_val)) median_val else NA
+      mean_val <- round(as.numeric(summary_stats[4]), 2) if (!is.na(mean_val)) mean_val else NA
+      q3_val <- round(as.numeric(summary_stats[5]), 2) if (!is.na(q3_val)) q3_val else NA
+      max_val <- round(as.numeric(summary_stats[6]), 2) if (!is.na(max_val)) max_val else NA
+    } else {
+      min_val <- NA
+      q1_val <- NA
+      median_val <- NA
+      mean_val <- NA
+      q3_val <- NA
+      max_val <- NA
+    }
+    
+    if (!is.null(Flow1$AccumLoad) && length(Flow1$AccumLoad) > 0) {
+      sum_val <- tail(Flow1$AccumLoad, 1)
+    } else {
+      sum_val <- NA
+    }
     
     # Create a new row with statistics
     new_row <- data.frame(
       SiteName = i,
-      Min = round(as.numeric(summary_stats[1]), 2),
-      Q1 = round(as.numeric(summary_stats[2]), 2),
-      Median = round(as.numeric(summary_stats[3]), 2),
-      Mean = round(as.numeric(summary_stats[4]), 2),
-      Q3 = round(as.numeric(summary_stats[5]), 2),
-      Max = round(as.numeric(summary_stats[6]), 2),
-      Sum = tail(Flow1$AccumLoad, 1),
+      Min = min_val,
+      Q1 = q1_val,
+      Median = median_val,
+      Mean = mean_val,
+      Q3 = q3_val,
+      Max = max_val,
+      Sum = sum_val,
       stringsAsFactors = FALSE
     )
+    
     
     # Append the current iteration to the Load_list
     Load_list[[i]] <- Flow1
     
     # Append the current iteration to the Statistics_Load
-    Statistics_Load <- rbind(Statistics_Load, new_row)
+    if (!any(is.na(new_row))) {
+      Statistics_Load <- rbind(Statistics_Load, new_row)
+    } else {
+      warning(paste("Invalid data or summary statistics for site:", i))
+    }
+    
   } else {
     cat("Site not found in the lookup table:", lookup_site, "\n")
   } 
 }
 
-# Combine the list of data frames into a single data frame
-Load_list <- do.call(rbind, Load_list)
 
 # End loop 2 -------------------------------------------------------------------
 

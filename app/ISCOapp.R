@@ -20,6 +20,7 @@ library(leaflet)
 library(dplyr)
 library(sf)
 library(shinyWidgets)
+library(xml2)
 
 # Load map dataset
 #markers_data <- read.csv("I:/306 HCE Project/R_analysis/Rating curves/RatingCurvesGit/app/markers.csv")
@@ -104,12 +105,11 @@ ui <- fluidPage(
 )
 
 # Define server logic
-server <- function(input, output) {
+server <- function(input, output, session) {
   output$caption <- renderText({
     paste("Measurement ~", input$df, " | Site ~", input$SiteName)
   })
   
-
   # Shiny app renderPlot
   output$Plot <- renderPlotly({
     df1 <- subset(df, SiteName == input$SiteName)
@@ -181,7 +181,6 @@ server <- function(input, output) {
             lat = markers_data$lat[markers_data$popup == input$SiteName], 
             zoom = 14)
   })
-  
 }
 
 ##### Turn on ONE of the options below:
