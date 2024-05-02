@@ -192,12 +192,18 @@ for (i in sitelist) {
     # Get summary statistics for the current iteration for load
     if (!is.null(Flow1$Load) && length(Flow1$Load) > 0 && !all(is.na(Flow1$Load))) {
       summary_stats <- summary(Flow1$Load)
-      min_val <- round(as.numeric(summary_stats[1]), 2) if (!is.na(min_val)) min_val else NA
-      q1_val <- round(as.numeric(summary_stats[2]), 2) if (!is.na(q1_val)) q1_val else NA
-      median_val <- round(as.numeric(summary_stats[3]), 2) if (!is.na(median_val)) median_val else NA
-      mean_val <- round(as.numeric(summary_stats[4]), 2) if (!is.na(mean_val)) mean_val else NA
-      q3_val <- round(as.numeric(summary_stats[5]), 2) if (!is.na(q3_val)) q3_val else NA
-      max_val <- round(as.numeric(summary_stats[6]), 2) if (!is.na(max_val)) max_val else NA
+      min_val <- round(as.numeric(summary_stats[1]), 2) 
+      min_val <- if (!is.na(min_val)) min_val else NA
+      q1_val <- round(as.numeric(summary_stats[2]), 2) 
+      q1_val <- if (!is.na(q1_val)) q1_val else NA
+      median_val <- round(as.numeric(summary_stats[3]), 2) 
+      median_val <- if (!is.na(median_val)) median_val else NA
+      mean_val <- round(as.numeric(summary_stats[4]), 2) 
+      mean_val <- if (!is.na(mean_val)) mean_val else NA
+      q3_val <- round(as.numeric(summary_stats[5]), 2) 
+      q3_val <- if (!is.na(q3_val)) q3_val else NA
+      max_val <- round(as.numeric(summary_stats[6]), 2) 
+      max_val <- if (!is.na(max_val)) max_val else NA
     } else {
       min_val <- NA
       q1_val <- NA
