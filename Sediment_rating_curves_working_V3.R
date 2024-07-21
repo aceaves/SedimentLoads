@@ -31,11 +31,30 @@ sitelist <- SiteList(dfile, "")
 Hilltop::SiteList(dfile)
 
 # Date range. 
-date1 <- "01-July-2019 00:00:00"
-date2 <- "01-July-2020 00:00:00"
+date1 <- "01-July-2021 00:00:00"
+date2 <- "12-February-2023 00:00:00"
 
 #Measurements/data that we want to pull from the Hilltop file 
-measurement <- c(	'Suspended Solids [Suspended Solids]','Suspended Sediment Concentration', "Flow")  
+measurement <- c(	'Suspended Solids [Suspended Solids]','Suspended Sediment Concentration', "Flow") 
+
+#Loop through sites in Puddle---------------------------------------------------
+#for (i in sitelist) { 
+  
+  ###  Get puddle SSC data  ####################################################
+  
+#  MyData <- getPuddleData(
+#    query_option = "fullPuddleHilltop",
+#    fromDate = "01-06-2021",
+#    toDate = "12-02-2023",
+#    catchments = "",
+#    sites = i,
+#    projects = "340204",
+#    measurements = "Suspended Sediment Concentration",
+#    detids = ""
+#  )
+#  head(MyData, 10)
+  
+#}
 
 # Read regression file into a data frame
 regression_output <- "I:/306 HCE Project/R_analysis/Rating curves/RatingCurvesGit/Outputs/Regressions/regression_output_excel.xlsx"
@@ -94,8 +113,6 @@ for (j in 1:site_no) {
     warning(paste("No data for site", site_id[j], "in iteration", j))
   }
 }
-
-
 # End loop 1 -------------------------------------------------------------------
 
 # Rename column names for the new dataframe called 'melt' 
@@ -119,6 +136,34 @@ Flow <- Flow[!( Flow[, 3] < 0), ]
 # Remove rows with dodgy flow for the specified SiteName
 Flow <- subset(Flow, !(SiteName == "Mangamaire Stream at Cooks Tooth Rd" & Flow > 434459))
 Flow <- subset(Flow, !(SiteName == "Waiau River at Ardkeen" & Flow < 100000))
+
+###############################################################################
+
+measure <- Load_list
+
+SSC <- filter(melt, Measurement %in% c("Suspended Sediment Concentration", "Suspended Solids"))
+SSC <- as.data.frame(sapply(SSC, gsub, pattern = "<|>", replacement = ""))
+SSC$SampleTaken <- as.POSIXct(SSC$SampleTaken, format = "%Y-%m-%d %H:%M:%S", na.rm = TRUE)
+SSC$SampleTaken <- lubridate::round_date(SSC$SampleTaken, "15 minutes") 
+
+# Convert to character to merge flow and concentration
+Flow$SampleTaken <-as.character(Flow$SampleTaken) 
+SSC$SampleTaken <-as.character(SSC$SampleTaken) 
+merged <- merge(Flow, SSC, by = c("SampleTaken", "SiteName"))
+# Remove unnecessary columns
+merged <- merged[,c(1,2,3,4,5)]
+colnames(merged) <- c('SampleTaken','Site', 'Flow', 'Conc', 'Measurement2')
+# Convert back to date-time and Conc to numeric
+merged$SampleTaken <- as.POSIXct(merged$SampleTaken, format = "%Y-%m-%d %H:%M:%S")
+merged$Conc <- as.numeric(merged$Conc)
+Flow$SampleTaken <- as.POSIXct(Flow$SampleTaken , format = "%Y-%m-%d %H:%M:%S")
+# Filter out SSC from SS
+merged$Measurement2[merged$Measurement2 == 'Suspended Sediment Concentration'] <- "SSC"
+merged$Measurement2[merged$Measurement2 == 'Suspended Solids'] <- "SS"
+merged1 <- filter(merged, Measurement2 == 'SSC')
+
+#####  Write out merged1 for external regression analysis ######################
+#write.csv(merged1, file = "I:/306 HCE Project/R_analysis/Rating curves/RatingCurvesGit/Outputs/merged1.csv", row.names = FALSE)
 
 ###############################################################################
 
@@ -156,7 +201,7 @@ for (i in sitelist) {
     
     # Process according to regression type
     if (regression_type == "Exponential") {
-      Flow1$PredConc <- lookup_result$Exp_Power * exp(lookup_result$Exp_X * Flow1$Flow)
+      Flow1$PredConc <-  exp(lookup_result$Exp_X * Flow1$Flow/2000) * lookup_result$Exp_Power # Calibrated to match rating
     } else if (regression_type == "Polynomial") {
       Flow1$PredConc <- lookup_result$X_Squared * Flow1$Flow^2 + lookup_result$Poly_X * Flow1$Flow + lookup_result$Poly_Intercept
     } else if (regression_type == "Log") {
@@ -251,70 +296,35 @@ for (i in sitelist) {
 
 # End loop 2 -------------------------------------------------------------------
 
-# Export data to CSV for use in Sedrate
-#write.csv(Load_list, file = "Load_list_Mar2022Mar2023.csv", row.names = FALSE)
-
-#### Export for use in FlowDist & Gendist ######################################
-#### Do not need to do every time
-# Convert DateTime to character with format including time
-#Flow$SampleTaken <- format(Flow$SampleTaken, "%Y-%m-%d %H:%M:%S")
-
-# Export data to CSV for use in Sedrate
-#write.csv(Flow, file = "Flow_Mar2018Mar2023.csv", row.names = FALSE)
-
 ################################################################################
-
-measure <- Load_list
-  
-SSC <- filter(melt, Measurement %in% c("Suspended Sediment Concentration", "Suspended Solids"))
-SSC <- as.data.frame(sapply(SSC, gsub, pattern = "<|>", replacement = ""))
-SSC$SampleTaken <- as.POSIXct(SSC$SampleTaken, format = "%Y-%m-%d %H:%M:%S", na.rm = TRUE)
-SSC$SampleTaken <- lubridate::round_date(SSC$SampleTaken, "15 minutes") 
-
-# Convert to character to merge flow and concentration
-Flow$SampleTaken <-as.character(Flow$SampleTaken) 
-SSC$SampleTaken <-as.character(SSC$SampleTaken) 
-merged <- merge(Flow, SSC, by = c("SampleTaken", "SiteName"))
-# Remove unnecessary columns
-merged <- merged[,c(1,2,3,4,5)]
-colnames(merged) <- c('SampleTaken','Site', 'Flow', 'Conc', 'Measurement2')
-# Convert back to date-time and Conc to numeric
-merged$SampleTaken <- as.POSIXct(merged$SampleTaken, format = "%Y-%m-%d %H:%M:%S")
-merged$Conc <- as.numeric(merged$Conc)
-Flow$SampleTaken <- as.POSIXct(Flow$SampleTaken , format = "%Y-%m-%d %H:%M:%S")
-# Filter out SSC from SS
-merged$Measurement2[merged$Measurement2 == 'Suspended Sediment Concentration'] <- "SSC"
-merged$Measurement2[merged$Measurement2 == 'Suspended Solids'] <- "SS"
-merged1 <- filter(merged, Measurement2 == 'SSC')
-
-#####  Write out merged1 for external regression analysis ######################
-#write.csv(merged1, file = "I:/306 HCE Project/R_analysis/Rating curves/RatingCurvesGit/Outputs/merged1.csv", row.names = FALSE)
-
-###############################################################################
 
 #Set working directory for outputs and customise as needed (date etc)
 setwd('I:/306 HCE Project/R_analysis/Rating curves/RatingCurvesGit/Outputs')
 
 ##########################################
 
+# Convert measure to data frame
+# If measure is a list of data frames, bind them into a single data frame
+measure_df <- bind_rows(measure)
+
 #Loop 3 through sites-----------------------------------------------------------
 for (i in sitelist) { 
 
 ###  Exports  ##################################################################
 
-  measure1 <- filter(measure, SiteName == i)
+  measure1 <- filter(measure_df, SiteName == i)
   merged2 <- filter(merged, Site == i)
   merged3 <- filter(merged1, Site == i)
 
   ###############################
   #Export Flowplot to a PNG file
   filename <- paste("FLOW_", i, ".png", sep="")
-  png(filename, width=1200, height=800)
+  png(filename, width=1200, height=500)
   
   Flowplot <- ggplot(data = measure1) +
     geom_path(aes(x = SampleTaken, y = Flow/1000), colour = 'blue', size = 0.4) + 
     scale_x_datetime(date_labels = "%b %Y", date_breaks = "3 months", name = "Date") +
-    scale_y_continuous(labels = comma_format(), name = "Flow (m"^"3/s"~")")
+    scale_y_continuous(labels = comma_format(), name = "Flow (m"^"3"/s~")")
   
   print(Flowplot)
   dev.off()
@@ -322,14 +332,14 @@ for (i in sitelist) {
   ###############################
   # Export Sample SSC plot to a PNG file
   filename <- paste("SSC_", i, ".png", sep="")
-  png(filename, width=1200, height=800)
+  png(filename, width=1200, height=500)
   
   SSC <- ggplot(data = measure1) +
-    geom_path(data = measure1, aes(x = SampleTaken, y = Flow/1000), colour = "blue", size = 0.4)+
     geom_line(data = measure1, aes(x = SampleTaken, y = PredConc), colour = 'darkgoldenrod') +
-
+    geom_point(data = merged3, aes(x = SampleTaken, y = Conc, color = 'black'), size = 1.5) +
     scale_x_datetime(date_labels = "%b %Y", date_breaks = "3 months", name = "Date") +
-    scale_y_continuous(labels = comma_format(),  name = "Flow (m"^"3/s"~")", sec.axis = sec_axis(~./1, name = "SSC (mg/l)"))
+    scale_y_continuous(labels = comma_format(), name = "SSC (mg/l)")
+#    scale_y_continuous(labels = comma_format(),name = "SSC (mg/l)",expand = c(0,0,0.2,2), sec.axis = sec_axis(~./1, name = "Sample (mg/l)")) 
   
   print(SSC)
   dev.off()
@@ -337,13 +347,12 @@ for (i in sitelist) {
   ################################
   # Export Cumulative Sediment1 plot to a PNG file
   filename <- paste("CUMSSC_", i, ".png", sep="")
-  png(filename, width=1200, height=800)
+  png(filename, width=1200, height=500)
   
   CUMSSC <- ggplot(data = measure1) +
-    geom_line(data = measure1, aes(x = SampleTaken, y = PredConc), colour = 'darkgoldenrod') +
-    geom_line(data = measure1, aes(x = SampleTaken, y = AccumLoad), colour = 'coral1')+
+    geom_line(data = measure1, aes(x = SampleTaken, y = AccumLoad), colour = 'coral1') +
     scale_x_datetime(date_labels = "%b %Y", date_breaks = "3 months", name = "Date") +
-    scale_y_continuous(name = "SSC (mg/l)",expand = c(0,0,0.2,2), sec.axis = sec_axis(~./1, name = "Cumulative sediment (T)"))
+    scale_y_continuous(name = "Cumulative sediment (T)", labels = comma)
   
   print(CUMSSC)
   dev.off()
@@ -351,7 +360,7 @@ for (i in sitelist) {
   ################################
   # Export Cumulative Sediment2 plot to a PNG file
   filename <- paste("CUMSSC2_", i, ".png", sep="")
-  png(filename, width=1200, height=800)
+  png(filename, width=1200, height=500)
   
   CUMSSC2 <- ggplot(data = measure1) +
     geom_line(data = measure1, aes(x = SampleTaken, y = PredConc), colour = 'darkgoldenrod') +

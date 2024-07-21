@@ -25,6 +25,7 @@ library(ggtext)
 #Get flow data #################################################################
 
 #Set file path to ISCO Hilltop file 
+
 dfile <- HilltopData("I:/306 HCE Project/Hilltop/ISCO_Processing.dsn")
 #dfile <- HilltopData("N:/HilltopData/EMAR/EMARFull.dsn")
 
@@ -33,7 +34,7 @@ sitelist <- SiteList(dfile, "")
 Hilltop::SiteList(dfile)
 
 # Date range. 
-date1 <- "01-February-2018 00:00:00"
+date1 <- "01-June-2021 00:00:00"
 date2 <- "12-February-2023 00:00:00"
 
 #Measurements/data that we want to pull from the Hilltop file 
@@ -134,8 +135,8 @@ for (i in sitelist) {
   
   MyData <- getPuddleData(
     query_option = "fullPuddleHilltop",
-    fromDate = "01-01-2018",
-    toDate = "01-12-2023",
+    fromDate = "01-06-2021",
+    toDate = "12-02-2023",
     catchments = "",
     sites = i,
     projects = "340204",
