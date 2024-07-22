@@ -16,6 +16,7 @@ library(openxlsx)
 library(zoo)
 library(xts)
 library(readxl)
+library(grid)
 
 # Set the locale to ensure proper date-time parsing
 Sys.setlocale("LC_TIME", "C")
@@ -209,7 +210,7 @@ for (i in sitelist) {
     } else if (regression_type == "Power") {
       Flow1$PredConc <- lookup_result$Power_X * Flow1$Flow ^ lookup_result$Power_Exp
     } else if (regression_type == "Linear") {
-      Flow1$PredConc <- lookup_result$Slope * Flow1$Flow + lookup_result$Linear_Intercept
+      Flow1$PredConc <- lookup_result$Slope * Flow1$Flow + lookup_result$Linear_Intercept # slope in l/s
     } 
     
     # Remove negative values from regressions
@@ -276,8 +277,7 @@ for (i in sitelist) {
       Sum = sum_val,
       stringsAsFactors = FALSE
     )
-    
-    
+
     # Append the current iteration to the Load_list
     Load_list[[i]] <- Flow1
     
@@ -293,15 +293,12 @@ for (i in sitelist) {
   } 
 }
 
-
 # End loop 2 -------------------------------------------------------------------
 
 ################################################################################
 
 #Set working directory for outputs and customise as needed (date etc)
 setwd('I:/306 HCE Project/R_analysis/Rating curves/RatingCurvesGit/Outputs')
-
-##########################################
 
 # Convert measure to data frame
 # If measure is a list of data frames, bind them into a single data frame
@@ -319,12 +316,17 @@ for (i in sitelist) {
   ###############################
   #Export Flowplot to a PNG file
   filename <- paste("FLOW_", i, ".png", sep="")
-  png(filename, width=1200, height=500)
+  png(filename, width=1000, height=500)
   
   Flowplot <- ggplot(data = measure1) +
-    geom_path(aes(x = SampleTaken, y = Flow/1000), colour = 'blue', size = 0.4) + 
+    geom_path(aes(x = SampleTaken, y = Flow/1000), colour = '#00364a', size = 0.4) + 
     scale_x_datetime(date_labels = "%b %Y", date_breaks = "3 months", name = "Date") +
-    scale_y_continuous(labels = comma_format(), name = "Flow (m"^"3"/s~")")
+    scale_y_continuous(name = "Flow (m"^"3"/s~")", labels = comma) +
+    theme(
+      axis.title = element_text(size = 17),    # Axis titles font size
+      axis.text = element_text(size = 15),     # Axis labels font size
+      plot.margin = unit(c(0.75, 0.75, 0.75, 0.75), "cm"),  # Top, right, bottom, left margins
+    )
   
   print(Flowplot)
   dev.off()
@@ -332,14 +334,17 @@ for (i in sitelist) {
   ###############################
   # Export Sample SSC plot to a PNG file
   filename <- paste("SSC_", i, ".png", sep="")
-  png(filename, width=1200, height=500)
+  png(filename, width=1000, height=500)
   
   SSC <- ggplot(data = measure1) +
-    geom_line(data = measure1, aes(x = SampleTaken, y = PredConc), colour = 'darkgoldenrod') +
-    geom_point(data = merged3, aes(x = SampleTaken, y = Conc, color = 'black'), size = 1.5) +
+    geom_line(data = measure1, aes(x = SampleTaken, y = PredConc), colour = '#92a134') +
     scale_x_datetime(date_labels = "%b %Y", date_breaks = "3 months", name = "Date") +
-    scale_y_continuous(labels = comma_format(), name = "SSC (mg/l)")
-#    scale_y_continuous(labels = comma_format(),name = "SSC (mg/l)",expand = c(0,0,0.2,2), sec.axis = sec_axis(~./1, name = "Sample (mg/l)")) 
+    scale_y_continuous(name = "SSC (mg/l)", labels = comma) +
+    theme(
+      axis.title = element_text(size = 17),    # Axis titles font size
+      axis.text = element_text(size = 15),     # Axis labels font size
+      plot.margin = unit(c(0.75, 0.75, 0.75, 0.75), "cm"),  # Top, right, bottom, left margins
+    )
   
   print(SSC)
   dev.off()
@@ -347,28 +352,38 @@ for (i in sitelist) {
   ################################
   # Export Cumulative Sediment1 plot to a PNG file
   filename <- paste("CUMSSC_", i, ".png", sep="")
-  png(filename, width=1200, height=500)
+  png(filename, width=1000, height=500)
   
   CUMSSC <- ggplot(data = measure1) +
-    geom_line(data = measure1, aes(x = SampleTaken, y = AccumLoad), colour = 'coral1') +
+    geom_line(data = measure1, aes(x = SampleTaken, y = AccumLoad), colour = '#f15d49') +
     scale_x_datetime(date_labels = "%b %Y", date_breaks = "3 months", name = "Date") +
-    scale_y_continuous(name = "Cumulative sediment (T)", labels = comma)
+    scale_y_continuous(name = "Cumulative sediment (T)", labels = comma) +
+    theme(
+      axis.title = element_text(size = 17),    # Axis titles font size
+      axis.text = element_text(size = 15),     # Axis labels font size
+      plot.margin = unit(c(0.75, 0.75, 0.75, 0.75), "cm"),  # Top, right, bottom, left margins
+    )
   
   print(CUMSSC)
   dev.off()
   
   ################################
-  # Export Cumulative Sediment2 plot to a PNG file
-  filename <- paste("CUMSSC2_", i, ".png", sep="")
-  png(filename, width=1200, height=500)
+  # Export SSC with point samples plot to a PNG file
+  filename <- paste("SSC2_", i, ".png", sep="")
+  png(filename, width=1000, height=500)
   
-  CUMSSC2 <- ggplot(data = measure1) +
-    geom_line(data = measure1, aes(x = SampleTaken, y = PredConc), colour = 'darkgoldenrod') +
-    geom_point(data = merged3, aes(x = SampleTaken, y = Conc, color = Measurement2),colour = 'aquamarine4', size = 1.5)+
+  SSC2 <- ggplot(data = measure1) +
+    geom_line(data = measure1, aes(x = SampleTaken, y = PredConc), colour = '#92a134') +
+    geom_point(data = merged3, aes(x = SampleTaken, y = Conc, color = Measurement2),colour = '#eebd1c', size = 2) +
     scale_x_datetime(date_labels = "%b %Y", date_breaks = "3 months", name = "Date") +
-    scale_y_continuous(name = "SSC (mg/l)",expand = c(0,0,0.2,2))
+    scale_y_continuous(name = "SSC (mg/l)", labels = comma) +
+    theme(
+      axis.title = element_text(size = 17),    # Axis titles font size
+      axis.text = element_text(size = 15),     # Axis labels font size
+      plot.margin = unit(c(0.75, 0.75, 0.75, 0.75), "cm"),  # Top, right, bottom, left margins
+    )
   
-  print(CUMSSC2)
+  print(SSC2)
   dev.off()
   
 }
