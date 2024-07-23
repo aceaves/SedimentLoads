@@ -41,9 +41,29 @@ date2 <- "12-February-2023 00:00:00"
 #Measurements/data that we want to pull from the Hilltop file 
 measurement <- c(	'Suspended Solids [Suspended Solids]','Suspended Sediment Concentration', "Flow") 
 
+#Loop through sites in Puddle---------------------------------------------------
+#for (i in sitelist) { 
+
+###  Get puddle SSC data  ####################################################
+
+#  MyData <- getPuddleData(
+#    query_option = "fullPuddleHilltop",
+#    fromDate = "01-06-2021",
+#    toDate = "12-02-2023",
+#    catchments = "",
+#    sites = i,
+#    projects = "340204",
+#    measurements = "Suspended Sediment Concentration",
+#    detids = ""
+#  )
+#  head(MyData, 10)
+
+#}
+
 # Read regression file into a data frame
 regression_output <- "I:/306 HCE Project/R_analysis/Rating curves/RatingCurvesGit/Outputs/Regressions/regression_output_excel.xlsx"
 regression <- read.xlsx(regression_output)
+
 # Print the data
 print(regression)
 
@@ -52,7 +72,7 @@ print(regression)
 #Loop 1 through sites-----------------------------------------------------------
 name <- data.frame(sitelist)
 name$Sites <- as.character(name$sitelist)
-  
+
 site_no <- length(sitelist)
 site_id <- sitelist
 
@@ -101,13 +121,13 @@ for (j in 1:site_no) {
 
 # Rename column names for the new dataframe called 'melt' 
 colnames(melt) <- c("SampleTaken", "Flow", "SiteName","Measurement")
-  
+
 # Data pulled from Hilltop has different time frequencies. 
 # The aggregate function is used to aggregate data to 15 minute intervals.
 melt$SampleTaken <-  lubridate::floor_date(melt$SampleTaken, "15 minutes")
 melt$SampleTaken <- as.POSIXct(melt$SampleTaken, format = "%Y-%m-%d %H:%M:%S", na.rm = TRUE)
 
-# Clean up flow
+
 Flow <- filter(melt, Measurement == "Flow")
 Flow$Flow <- as.numeric(Flow$Flow, na.rm = TRUE)
 Flow <- Flow %>% group_by(SampleTaken, SiteName, Measurement) %>%
@@ -123,7 +143,6 @@ Flow <- subset(Flow, !(SiteName == "Waiau River at Ardkeen" & Flow < 100000))
 
 ###############################################################################
 
-# Clean up SSC and merge flow
 measure <- Load_list
 
 SSC <- filter(melt, Measurement %in% c("Suspended Sediment Concentration", "Suspended Solids"))
@@ -131,19 +150,17 @@ SSC <- as.data.frame(sapply(SSC, gsub, pattern = "<|>", replacement = ""))
 SSC$SampleTaken <- as.POSIXct(SSC$SampleTaken, format = "%Y-%m-%d %H:%M:%S", na.rm = TRUE)
 SSC$SampleTaken <- lubridate::round_date(SSC$SampleTaken, "15 minutes") 
 
-# Convert to merge flow and concentration
-Flow$SampleTaken <- format(as.POSIXct(Flow$SampleTaken), "%Y-%m-%d %H:%M:%S")
-SSC$SampleTaken <- format(as.POSIXct(SSC$SampleTaken), "%Y-%m-%d %H:%M:%S")
+# Convert to character to merge flow and concentration
+Flow$SampleTaken <-as.character(Flow$SampleTaken) 
+SSC$SampleTaken <-as.character(SSC$SampleTaken) 
 merged <- merge(Flow, SSC, by = c("SampleTaken", "SiteName"))
-# Ensure SampleTaken remains POSIXct after merging
-merged$SampleTaken <- as.POSIXct(merged$SampleTaken, format = "%Y-%m-%d %H:%M:%S")
-
-
 # Remove unnecessary columns
 merged <- merged[,c(1,2,3,4,5)]
-colnames(merged) <- c('SampleTaken','SiteName', 'Flow', 'Conc', 'Measurement2')
+colnames(merged) <- c('SampleTaken','Site', 'Flow', 'Conc', 'Measurement2')
 # Convert back to date-time and Conc to numeric
+merged$SampleTaken <- as.POSIXct(merged$SampleTaken, format = "%Y-%m-%d %H:%M:%S")
 merged$Conc <- as.numeric(merged$Conc)
+Flow$SampleTaken <- as.POSIXct(Flow$SampleTaken , format = "%Y-%m-%d %H:%M:%S")
 # Filter out SSC from SS
 merged$Measurement2[merged$Measurement2 == 'Suspended Sediment Concentration'] <- "SSC"
 merged$Measurement2[merged$Measurement2 == 'Suspended Solids'] <- "SS"
@@ -174,7 +191,7 @@ Statistics_Load <- data.frame(
 # Iterate over sitelist
 for (i in sitelist) { 
   # Subset Flow for the current SiteName
-  Flow1 <- dplyr::filter(merged1, SiteName == i)
+  Flow1 <- dplyr::filter(Flow, SiteName == i)
   
   # Assuming 'SiteName' is the key for the lookup
   lookup_site <- i
@@ -188,7 +205,7 @@ for (i in sitelist) {
     
     # Process according to regression type
     if (regression_type == "Exponential") {
-      Flow1$PredConc <-  exp(lookup_result$Exp_X * Flow1$Flow) * lookup_result$Exp_Power 
+      Flow1$PredConc <-  exp(lookup_result$Exp_X * Flow1$Flow/2000) * lookup_result$Exp_Power # Calibrated to match rating
     } else if (regression_type == "Polynomial") {
       Flow1$PredConc <- lookup_result$X_Squared * Flow1$Flow^2 + lookup_result$Poly_X * Flow1$Flow + lookup_result$Poly_Intercept
     } else if (regression_type == "Log") {
@@ -201,9 +218,6 @@ for (i in sitelist) {
     
     # Remove negative values from regressions
     Flow1$PredConc[Flow1$PredConc < 0] <- 0
-    
-    # Convert SampleTaken to POSIXct to perform calculations
-    Flow1$SampleTaken <- as.POSIXct(Flow1$SampleTaken, format = "%Y-%m-%d %H:%M:%S")
     
     # Calculate the total time associated with each flow value
     Flow1$TimeDiff <- dplyr::lead(Flow1$SampleTaken) - Flow1$SampleTaken
@@ -295,13 +309,13 @@ measure_df <- bind_rows(measure)
 
 #Loop 3 through sites-----------------------------------------------------------
 for (i in sitelist) { 
-
-###  Exports  ##################################################################
-
+  
+  ###  Exports  ##################################################################
+  
   measure1 <- filter(measure_df, SiteName == i)
-  merged2 <- filter(merged, SiteName == i)
-  merged3 <- filter(merged1, SiteName == i)
-
+  merged2 <- filter(merged, Site == i)
+  merged3 <- filter(merged1, Site == i)
+  
   ###############################
   #Export Flowplot to a PNG file
   filename <- paste("FLOW_", i, ".png", sep="")
@@ -377,7 +391,6 @@ for (i in sitelist) {
   
 }
 #Loop 3 completed---------------------------------------------------------------
-
 ###### More Outputs  ##########################
 # Print the resulting table
 print(Statistics_Load)
