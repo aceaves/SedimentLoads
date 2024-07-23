@@ -3,6 +3,8 @@
 # Rating curves have been generated using regressions generated in SSC_flow_regressions.R to predict sediment loads.
 # Edited by Ashton Eaves from March 2023 and tracked using Github: https://github.com/aceaves/SedimentRatingCurves
 
+################################################################################
+
 library(Hilltop)
 library(dplyr)
 library(scales)
@@ -17,6 +19,7 @@ library(zoo)
 library(xts)
 library(readxl)
 library(grid)
+library(HBRCDataAccess)
 
 # Set the locale to ensure proper date-time parsing
 Sys.setlocale("LC_TIME", "C")
@@ -38,29 +41,9 @@ date2 <- "12-February-2023 00:00:00"
 #Measurements/data that we want to pull from the Hilltop file 
 measurement <- c(	'Suspended Solids [Suspended Solids]','Suspended Sediment Concentration', "Flow") 
 
-#Loop through sites in Puddle---------------------------------------------------
-#for (i in sitelist) { 
-  
-  ###  Get puddle SSC data  ####################################################
-  
-#  MyData <- getPuddleData(
-#    query_option = "fullPuddleHilltop",
-#    fromDate = "01-06-2021",
-#    toDate = "12-02-2023",
-#    catchments = "",
-#    sites = i,
-#    projects = "340204",
-#    measurements = "Suspended Sediment Concentration",
-#    detids = ""
-#  )
-#  head(MyData, 10)
-  
-#}
-
 # Read regression file into a data frame
 regression_output <- "I:/306 HCE Project/R_analysis/Rating curves/RatingCurvesGit/Outputs/Regressions/regression_output_excel.xlsx"
 regression <- read.xlsx(regression_output)
-
 # Print the data
 print(regression)
 
@@ -124,7 +107,7 @@ colnames(melt) <- c("SampleTaken", "Flow", "SiteName","Measurement")
 melt$SampleTaken <-  lubridate::floor_date(melt$SampleTaken, "15 minutes")
 melt$SampleTaken <- as.POSIXct(melt$SampleTaken, format = "%Y-%m-%d %H:%M:%S", na.rm = TRUE)
 
-
+# Clean up flow
 Flow <- filter(melt, Measurement == "Flow")
 Flow$Flow <- as.numeric(Flow$Flow, na.rm = TRUE)
 Flow <- Flow %>% group_by(SampleTaken, SiteName, Measurement) %>%
@@ -140,6 +123,7 @@ Flow <- subset(Flow, !(SiteName == "Waiau River at Ardkeen" & Flow < 100000))
 
 ###############################################################################
 
+# Clean up SSC and merge flow
 measure <- Load_list
 
 SSC <- filter(melt, Measurement %in% c("Suspended Sediment Concentration", "Suspended Solids"))
@@ -147,17 +131,19 @@ SSC <- as.data.frame(sapply(SSC, gsub, pattern = "<|>", replacement = ""))
 SSC$SampleTaken <- as.POSIXct(SSC$SampleTaken, format = "%Y-%m-%d %H:%M:%S", na.rm = TRUE)
 SSC$SampleTaken <- lubridate::round_date(SSC$SampleTaken, "15 minutes") 
 
-# Convert to character to merge flow and concentration
-Flow$SampleTaken <-as.character(Flow$SampleTaken) 
-SSC$SampleTaken <-as.character(SSC$SampleTaken) 
+# Convert to merge flow and concentration
+Flow$SampleTaken <- format(as.POSIXct(Flow$SampleTaken), "%Y-%m-%d %H:%M:%S")
+SSC$SampleTaken <- format(as.POSIXct(SSC$SampleTaken), "%Y-%m-%d %H:%M:%S")
 merged <- merge(Flow, SSC, by = c("SampleTaken", "SiteName"))
+# Ensure SampleTaken remains POSIXct after merging
+merged$SampleTaken <- as.POSIXct(merged$SampleTaken, format = "%Y-%m-%d %H:%M:%S")
+
+
 # Remove unnecessary columns
 merged <- merged[,c(1,2,3,4,5)]
-colnames(merged) <- c('SampleTaken','Site', 'Flow', 'Conc', 'Measurement2')
+colnames(merged) <- c('SampleTaken','SiteName', 'Flow', 'Conc', 'Measurement2')
 # Convert back to date-time and Conc to numeric
-merged$SampleTaken <- as.POSIXct(merged$SampleTaken, format = "%Y-%m-%d %H:%M:%S")
 merged$Conc <- as.numeric(merged$Conc)
-Flow$SampleTaken <- as.POSIXct(Flow$SampleTaken , format = "%Y-%m-%d %H:%M:%S")
 # Filter out SSC from SS
 merged$Measurement2[merged$Measurement2 == 'Suspended Sediment Concentration'] <- "SSC"
 merged$Measurement2[merged$Measurement2 == 'Suspended Solids'] <- "SS"
@@ -188,7 +174,7 @@ Statistics_Load <- data.frame(
 # Iterate over sitelist
 for (i in sitelist) { 
   # Subset Flow for the current SiteName
-  Flow1 <- dplyr::filter(Flow, SiteName == i)
+  Flow1 <- dplyr::filter(merged1, SiteName == i)
   
   # Assuming 'SiteName' is the key for the lookup
   lookup_site <- i
@@ -202,7 +188,7 @@ for (i in sitelist) {
     
     # Process according to regression type
     if (regression_type == "Exponential") {
-      Flow1$PredConc <-  exp(lookup_result$Exp_X * Flow1$Flow/2000) * lookup_result$Exp_Power # Calibrated to match rating
+      Flow1$PredConc <-  exp(lookup_result$Exp_X * Flow1$Flow) * lookup_result$Exp_Power 
     } else if (regression_type == "Polynomial") {
       Flow1$PredConc <- lookup_result$X_Squared * Flow1$Flow^2 + lookup_result$Poly_X * Flow1$Flow + lookup_result$Poly_Intercept
     } else if (regression_type == "Log") {
@@ -215,6 +201,9 @@ for (i in sitelist) {
     
     # Remove negative values from regressions
     Flow1$PredConc[Flow1$PredConc < 0] <- 0
+    
+    # Convert SampleTaken to POSIXct to perform calculations
+    Flow1$SampleTaken <- as.POSIXct(Flow1$SampleTaken, format = "%Y-%m-%d %H:%M:%S")
     
     # Calculate the total time associated with each flow value
     Flow1$TimeDiff <- dplyr::lead(Flow1$SampleTaken) - Flow1$SampleTaken
@@ -277,7 +266,7 @@ for (i in sitelist) {
       Sum = sum_val,
       stringsAsFactors = FALSE
     )
-
+    
     # Append the current iteration to the Load_list
     Load_list[[i]] <- Flow1
     
@@ -310,8 +299,8 @@ for (i in sitelist) {
 ###  Exports  ##################################################################
 
   measure1 <- filter(measure_df, SiteName == i)
-  merged2 <- filter(merged, Site == i)
-  merged3 <- filter(merged1, Site == i)
+  merged2 <- filter(merged, SiteName == i)
+  merged3 <- filter(merged1, SiteName == i)
 
   ###############################
   #Export Flowplot to a PNG file
@@ -393,16 +382,17 @@ for (i in sitelist) {
 # Print the resulting table
 print(Statistics_Load)
 
-#Table outputs
-write.csv(Statistics_Load, file = "Statistics_Load_Mar2018_Mar2023.csv", row.names = FALSE)
+#Table outputs ******Make sure the dates line up with data inputs
+write.csv(Statistics_Load, file = "Statistics_Load_July2021_Feb2023.csv", row.names = FALSE)
 
-measure$Flow <- measure$Flow/1000
-measure2 <- filter(measure, SiteName != "Aropaoanui River at Aropaoanui" 
-                   & SiteName != "Karamu Stream at Floodgates" 
-                   & SiteName != "Mangakuri River at Nilsson Road"
-                   & SiteName != "Mangaone River at Rissington"
-                   & SiteName != "Wharerangi Stream at Codds")
-measure2 <- measure2[,c(1,2,3,4,8,9)]
-write.csv(measure2, file = "I:/306 HCE Project/R_analysis/Rating curves/RatingCurvesGit/Outputs/measure_Mar2018_June2023.csv", row.names = FALSE)
+measure_df$Flow <- measure_df$Flow/1000
+measure_df2 <- filter(measure_df, Site != "Aropaoanui River at Aropaoanui" 
+                   & Site != "Karamu Stream at Floodgates" 
+                   & Site != "Tukituki River at Red Bridge" 
+                   & Site != "Mangakuri River at Nilsson Road"
+                   & Site != "Mangaone River at Rissington"
+                   & Site != "Wharerangi Stream at Codds")
+measure_df2 <- measure_df2[,c(1,2,3,4,8,9)]
+write.csv(measure_df2, file = "I:/306 HCE Project/R_analysis/Rating curves/RatingCurvesGit/Outputs/measure_df_July2021_Feb2023.csv", row.names = FALSE)
 
 ################################################################################
