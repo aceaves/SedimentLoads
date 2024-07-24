@@ -35,7 +35,7 @@ sitelist <- SiteList(dfile, "")
 Hilltop::SiteList(dfile)
 
 # Date range. 
-date1 <- "01-July-2018 00:00:00"
+date1 <- "01-July-2021 00:00:00"
 date2 <- "12-February-2023 00:00:00"
 
 #Measurements/data that we want to pull from the Hilltop file 
@@ -143,8 +143,6 @@ Flow <- subset(Flow, !(SiteName == "Waiau River at Ardkeen" & Flow < 100000))
 
 ###############################################################################
 
-measure <- Load_list
-
 SSC <- filter(melt, Measurement %in% c("Suspended Sediment Concentration", "Suspended Solids"))
 SSC <- as.data.frame(sapply(SSC, gsub, pattern = "<|>", replacement = ""))
 SSC$SampleTaken <- as.POSIXct(SSC$SampleTaken, format = "%Y-%m-%d %H:%M:%S", na.rm = TRUE)
@@ -205,7 +203,7 @@ for (i in sitelist) {
     
     # Process according to regression type
     if (regression_type == "Exponential") {
-      Flow1$PredConc <-  exp(lookup_result$Exp_X * Flow1$Flow) * lookup_result$Exp_Power
+      Flow1$PredConc <-  exp(lookup_result$Exp_X * Flow1$Flow) * lookup_result$Exp_Power # Calibrated to match rating for Aropaoanui divide flow by 2000 like this: Flow1$Flow/2000
     } else if (regression_type == "Polynomial") {
       Flow1$PredConc <- lookup_result$X_Squared * Flow1$Flow^2 + lookup_result$Poly_X * Flow1$Flow + lookup_result$Poly_Intercept
     } else if (regression_type == "Log") {
@@ -303,9 +301,9 @@ for (i in sitelist) {
 #Set working directory for outputs and customise as needed (date etc)
 setwd('I:/306 HCE Project/R_analysis/Rating curves/RatingCurvesGit/Outputs')
 
-# Convert measure to data frame
+# Create measure data frame
 # If measure is a list of data frames, bind them into a single data frame
-measure_df <- bind_rows(measure)
+measure_df <- bind_rows(Load_list)
 # Ensure SiteName is character in both sitelist and measure_df
 measure_df$SiteName <- as.character(measure_df$SiteName)
 sitelist <- as.character(sitelist)
@@ -313,7 +311,7 @@ sitelist <- as.character(sitelist)
 #Loop 3 through sites-----------------------------------------------------------
 for (i in sitelist) { 
   
-  ###  Exports  ##################################################################
+#####  Plot Exports  ###########################################################
   
   measure1 <- filter(measure_df, SiteName == i)
   merged2 <- filter(merged, Site == i)
@@ -397,7 +395,7 @@ for (i in sitelist) {
 print(Statistics_Load)
 
 ##Load table output ******Make sure the dates line up with data inputs
-#write.csv(Statistics_Load, file = "Statistics_Load_July2021_Feb2023.csv", row.names = FALSE)
+write.csv(Statistics_Load, file = "Statistics_Load_July2021_Feb2023.csv", row.names = FALSE)
 
 ############## Clean up measure_df for export 
 
@@ -425,17 +423,17 @@ for (i in seq_len(nrow(measure_df))) {
 
 
 # Remove unnecessary columns
-measure_df <- measure_df[,c(1,2,3,4,8)]
+measure_df2 <- measure_df[,c(1,2,3,4,8)]
 # Print the result
-print(measure_df)
+print(measure_df2)
 
 
-measure_df2 <- filter(measure_df, SiteName != "Aropaoanui River at Aropaoanui" 
+measure_df3 <- filter(measure_df2, SiteName != "Aropaoanui River at Aropaoanui" 
                    & SiteName != "Karamu Stream at Floodgates" 
                    & SiteName != "Tukituki River at Red Bridge" 
                    & SiteName != "Mangakuri River at Nilsson Road"
                    & SiteName != "Mangaone River at Rissington"
                    & SiteName != "Wharerangi Stream at Codds")
-write.csv(measure_df2, file = "I:/306 HCE Project/R_analysis/Rating curves/RatingCurvesGit/Outputs/measure_df_July2019_Feb2023.csv", row.names = FALSE)
+write.csv(measure_df3, file = "I:/306 HCE Project/R_analysis/Rating curves/RatingCurvesGit/Outputs/measure_df_July2021_Feb2023.csv", row.names = FALSE)
 
 ################################################################################
