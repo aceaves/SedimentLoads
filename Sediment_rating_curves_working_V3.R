@@ -35,7 +35,7 @@ sitelist <- SiteList(dfile, "")
 Hilltop::SiteList(dfile)
 
 # Date range. 
-date1 <- "01-July-2021 00:00:00"
+date1 <- "01-July-2018 00:00:00"
 date2 <- "12-February-2023 00:00:00"
 
 #Measurements/data that we want to pull from the Hilltop file 
@@ -205,7 +205,7 @@ for (i in sitelist) {
     
     # Process according to regression type
     if (regression_type == "Exponential") {
-      Flow1$PredConc <-  exp(lookup_result$Exp_X * Flow1$Flow/2000) * lookup_result$Exp_Power # Calibrated to match rating
+      Flow1$PredConc <-  exp(lookup_result$Exp_X * Flow1$Flow) * lookup_result$Exp_Power
     } else if (regression_type == "Polynomial") {
       Flow1$PredConc <- lookup_result$X_Squared * Flow1$Flow^2 + lookup_result$Poly_X * Flow1$Flow + lookup_result$Poly_Intercept
     } else if (regression_type == "Log") {
@@ -306,6 +306,9 @@ setwd('I:/306 HCE Project/R_analysis/Rating curves/RatingCurvesGit/Outputs')
 # Convert measure to data frame
 # If measure is a list of data frames, bind them into a single data frame
 measure_df <- bind_rows(measure)
+# Ensure SiteName is character in both sitelist and measure_df
+measure_df$SiteName <- as.character(measure_df$SiteName)
+sitelist <- as.character(sitelist)
 
 #Loop 3 through sites-----------------------------------------------------------
 for (i in sitelist) { 
@@ -330,7 +333,6 @@ for (i in sitelist) {
       axis.text = element_text(size = 15),     # Axis labels font size
       plot.margin = unit(c(0.75, 0.75, 0.75, 0.75), "cm"),  # Top, right, bottom, left margins
     )
-  
   print(Flowplot)
   dev.off()
   
@@ -348,7 +350,6 @@ for (i in sitelist) {
       axis.text = element_text(size = 15),     # Axis labels font size
       plot.margin = unit(c(0.75, 0.75, 0.75, 0.75), "cm"),  # Top, right, bottom, left margins
     )
-  
   print(SSC)
   dev.off()
   
@@ -366,7 +367,6 @@ for (i in sitelist) {
       axis.text = element_text(size = 15),     # Axis labels font size
       plot.margin = unit(c(0.75, 0.75, 0.75, 0.75), "cm"),  # Top, right, bottom, left margins
     )
-  
   print(CUMSSC)
   dev.off()
   
@@ -385,27 +385,57 @@ for (i in sitelist) {
       axis.text = element_text(size = 15),     # Axis labels font size
       plot.margin = unit(c(0.75, 0.75, 0.75, 0.75), "cm"),  # Top, right, bottom, left margins
     )
-  
   print(SSC2)
   dev.off()
   
 }
 #Loop 3 completed---------------------------------------------------------------
-###### More Outputs  ##########################
+
+###### More Outputs  ###########################################################
+
 # Print the resulting table
 print(Statistics_Load)
 
-#Table outputs ******Make sure the dates line up with data inputs
-write.csv(Statistics_Load, file = "Statistics_Load_July2021_Feb2023.csv", row.names = FALSE)
+##Load table output ******Make sure the dates line up with data inputs
+#write.csv(Statistics_Load, file = "Statistics_Load_July2021_Feb2023.csv", row.names = FALSE)
 
+############## Clean up measure_df for export 
+
+# Convert to cumecs
 measure_df$Flow <- measure_df$Flow/1000
-measure_df2 <- filter(measure_df, Site != "Aropaoanui River at Aropaoanui" 
-                   & Site != "Karamu Stream at Floodgates" 
-                   & Site != "Tukituki River at Red Bridge" 
-                   & Site != "Mangakuri River at Nilsson Road"
-                   & Site != "Mangaone River at Rissington"
-                   & Site != "Wharerangi Stream at Codds")
-measure_df2 <- measure_df2[,c(1,2,3,4,8,9)]
-write.csv(measure_df2, file = "I:/306 HCE Project/R_analysis/Rating curves/RatingCurvesGit/Outputs/measure_df_July2021_Feb2023.csv", row.names = FALSE)
+
+# Convert to date time
+measure_df$SampleTaken <- as.POSIXct(measure_df$SampleTaken, format = "%Y-%m-%d %H:%M:%S")
+
+# Define the time adjustment
+time_adjustment <- minutes(15)
+
+# Fill NA values with adjusted date from the next row
+for (i in seq_len(nrow(measure_df))) {
+  if (is.na(measure_df$SampleTaken[i])) {
+    # If the current row is NA, get the next row's date and adjust it
+    if (i < nrow(measure_df)) {
+      next_date <- measure_df$SampleTaken[i + 1]
+      if (!is.na(next_date)) {
+        measure_df$SampleTaken[i] <- next_date - time_adjustment
+      }
+    }
+  }
+}
+
+
+# Remove unnecessary columns
+measure_df <- measure_df[,c(1,2,3,4,8)]
+# Print the result
+print(measure_df)
+
+
+measure_df2 <- filter(measure_df, SiteName != "Aropaoanui River at Aropaoanui" 
+                   & SiteName != "Karamu Stream at Floodgates" 
+                   & SiteName != "Tukituki River at Red Bridge" 
+                   & SiteName != "Mangakuri River at Nilsson Road"
+                   & SiteName != "Mangaone River at Rissington"
+                   & SiteName != "Wharerangi Stream at Codds")
+write.csv(measure_df2, file = "I:/306 HCE Project/R_analysis/Rating curves/RatingCurvesGit/Outputs/measure_df_July2019_Feb2023.csv", row.names = FALSE)
 
 ################################################################################
