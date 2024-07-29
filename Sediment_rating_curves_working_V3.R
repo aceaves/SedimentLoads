@@ -30,40 +30,24 @@ Sys.setlocale("LC_TIME", "C")
 dfile <- HilltopData("I:/306 HCE Project/Hilltop/ISCO_Processing.dsn")
 #dfile <- HilltopData("N:/HilltopData/EMAR/EMARFull.dsn")
 
+
 # Get site list or measurement list for respective sites 
 sitelist <- SiteList(dfile, "")
 Hilltop::SiteList(dfile)
 
+# Subset the list for analysis after Cyclone Gabby as many sites have no data after.
+sitelist <- sitelist[sitelist == "Waimaunu Stream at Duncans" | 
+                       sitelist == "Waikatuku Strm off Harrison Rd"]
 # Date range. 
-date1 <- "01-July-2021 00:00:00"
-date2 <- "12-February-2023 00:00:00"
+date1 <- "19-February-2023 00:00:00"
+date2 <- "01-July-2024 00:00:00"
 
 #Measurements/data that we want to pull from the Hilltop file 
 measurement <- c(	'Suspended Solids [Suspended Solids]','Suspended Sediment Concentration', "Flow") 
 
-#Loop through sites in Puddle---------------------------------------------------
-#for (i in sitelist) { 
-
-###  Get puddle SSC data  ####################################################
-
-#  MyData <- getPuddleData(
-#    query_option = "fullPuddleHilltop",
-#    fromDate = "01-06-2021",
-#    toDate = "12-02-2023",
-#    catchments = "",
-#    sites = i,
-#    projects = "340204",
-#    measurements = "Suspended Sediment Concentration",
-#    detids = ""
-#  )
-#  head(MyData, 10)
-
-#}
-
 # Read regression file into a data frame
 regression_output <- "I:/306 HCE Project/R_analysis/Rating curves/RatingCurvesGit/Outputs/Regressions/regression_output_excel.xlsx"
 regression <- read.xlsx(regression_output)
-
 # Print the data
 print(regression)
 
@@ -421,16 +405,13 @@ for (i in seq_len(nrow(measure_df))) {
   }
 }
 
-
 # Remove unnecessary columns
 measure_df2 <- measure_df[,c(1,2,3,4,8)]
 # Print the result
 print(measure_df2)
 
-
 measure_df3 <- filter(measure_df2, SiteName != "Aropaoanui River at Aropaoanui" 
                    & SiteName != "Karamu Stream at Floodgates" 
-                   & SiteName != "Tukituki River at Red Bridge" 
                    & SiteName != "Mangakuri River at Nilsson Road"
                    & SiteName != "Mangaone River at Rissington"
                    & SiteName != "Wharerangi Stream at Codds")

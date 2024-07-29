@@ -11,120 +11,146 @@ library(lubridate)
 library(gt)
 library(ggplot2)
 library(plotly)
+library(tidyr)
 
 
 #set file path to ISCO Hilltop file 
 dfile <- HilltopData("I:/306 HCE Project/Hilltop/ISCO_Processing.dsn")
 
-# Get measurement list for respective sites 
-#measurementlist <- Hilltop::MeasurementList(dfile,"Tukituki River at Red Bridge")
-SiteList(dfile, "")
+# Get site list or measurement list for respective sites 
+sitelist <- SiteList(dfile, "")
+Hilltop::SiteList(dfile)
 
-#ISCO sites 
-#Sites <-  c( "Tutaekuri River at Puketapu HBRC Site", "Tukituki River at Red Bridge", "Karamu Stream at Floodgates", "Esk River at Waipunga Bridge", "Mangaone River at Rissington", "Maraetotara River at Waimarama Road")
-Sites <- "Karamu Stream at Floodgates" 
+#ISCO sites subset
+sitelist <- sitelist[sitelist == "Karamu Stream at Floodgates" | 
+                       sitelist == "Tukituki River at Red Bridge"]
 
 ################################################################################
 #Measurements/data that we want to pull from the Hilltop file 
-measurement <- c(	'Suspended Solids [Suspended Solids]','Suspended Sediment Concentration', "Turbidity (FNU) [Turbidity (FNU)]")  
+measurement <- c(	'Suspended Solids [Suspended Solids]','Suspended Sediment Concentration', "Turbidity (FNU) [Turbidity (FNU)]", "Flow")  
 
-Hilltop::SiteList(dfile)
 # Date range. 
-date1 <- "01-Jul-2022 00:00:00"
-date2 <- "30-Jun-2023 00:00:00"
+date1 <- "01-Jul-2021 00:00:00"
+date2 <- "01-Jul-2024 00:00:00"
 
-#____________________________________________________________________________________________________________________________________________________________________________________
-# trial_loop. This was developed by Ahmed to pull data from multiple sites out of Hilltop  --------------------------------------------------------------
+
+###############################################################################
+
+#Loop 1 through sites-----------------------------------------------------------
+name <- data.frame(sitelist)
+name$Sites <- as.character(name$sitelist)
+
 site_no <- length(Sites)
 site_id <- Sites
 
 method <- ""
 interval <- ""
 
-for(i in 1:site_no){
+# Initialize 'melt' before the loop if not already initialized
+melt <- NULL
+
+for (j in 1:site_no) {
+  Multiple_sites <- GetData(dfile, site_id[j], measurement, date1, date2)
+  print(paste("Data for site", site_id[j], ":", length(Multiple_sites)))
   
-  Multiple_sites <- GetData(dfile, site_id[i] ,measurement, date1, date2) # You will struggle to use this format in most packages 
-  
-  #do this to make it more useful
-  Multiple_sites_id <- do.call(rbind, lapply(Multiple_sites, function(x) cbind(zoo::fortify.zoo(x),
-                                                                               SiteName = attr(x, 'SiteName'), Measurement = attr(x, 'Measurement')))) %>% 
-    dplyr::rename(zoodata='x') %>% 
-    dplyr::rename(Site=SiteName) 
-  
-  
-  if(i==1){
-    melt <- Multiple_sites_id } 
-  else
-  {melt<- rbind(melt, Multiple_sites_id)
+  # Process only if Multiple_sites is not null and has elements
+  if (!is.null(Multiple_sites) && length(Multiple_sites) > 0) {
+    processed_sites <- lapply(Multiple_sites, function(x) {
+      if (NROW(x) > 0) {  # Ensure that x has rows
+        cbind(zoo::fortify.zoo(x), SiteName = attr(x, 'SiteName'), Measurement = attr(x, 'Measurement'))
+      } else {
+        NULL  # Return NULL if x is empty
+      }
+    })
+    
+    # Filter out NULL entries before attempting to rbind
+    processed_sites <- Filter(NROW, processed_sites)
+    
+    if (length(processed_sites) > 0) {
+      Multiple_sites_id <- do.call(rbind, processed_sites) %>%
+        dplyr::rename(zoodata = 'x') %>%
+        dplyr::rename(Site = SiteName)
+      
+      # Initialize or bind to 'melt'
+      if (is.null(melt)) {
+        melt <- Multiple_sites_id
+      } else {
+        melt <- rbind(melt, Multiple_sites_id)
+      }
+    } else {
+      warning(paste("Processed data is empty for site", site_id[j], "in iteration", j))
+    }
+  } else {
+    warning(paste("No data for site", site_id[j], "in iteration", j))
   }
-  #Multiple_sites_fin <- dplyr::bind_rows()
-  
 }
-#________________________________________________________________________________________________________________________________________________________________________________________
+# End loop 1 -------------------------------------------------------------------
+#_______________________________________________________________________________
+
 # Rename column names for the new dataframe called 'melt' 
-colnames(melt) <- c("SampleTaken", "Value", "SiteName","Measurement")
+colnames(melt) <- c("SampleTaken", "Flow", "SiteName","Measurement")
 
-melt <- as.data.frame(sapply(melt, gsub, pattern = "<|>", replacement = ""))
+# Data pulled from Hilltop has different time frequencies. 
+# The aggregate function is used to aggregate data to 15 minute intervals.
+melt$SampleTaken <-  lubridate::floor_date(melt$SampleTaken, "15 minutes")
+melt$SampleTaken <- as.POSIXct(melt$SampleTaken, format = "%Y-%m-%d %H:%M:%S", na.rm = TRUE)
 
-# Use dplyr to filter the 'melt' table and extract SSC and flow data 
-SSC <- filter(melt, Measurement %in% c("Suspended Sediment Concentration", "Suspended Solids"))
-Value <- filter(melt, Measurement == "Turbidity (FNU)")
-#Value <- filter(melt, Measurement == "Turbidity FNU (lab)")
-#Flow$SampleTaken1 <-  lubridate::floor_date(Flow$SampleTaken, "15 minutes")
 
+Flow <- filter(melt, Measurement == "Flow")
+Flow$Flow <- as.numeric(Flow$Flow, na.rm = TRUE)
+Flow <- Flow %>% group_by(SampleTaken, SiteName, Measurement) %>%
+  summarise(Flow = mean(Flow))
+Flow <- Flow[,c(1,2,4)]
 
 ###############################################################################
-# Create a new table with SSC data and associated turbidity data 
-# Covert date to character in order to merge data 
-SSC$SampleTaken <- as.POSIXct(SSC$SampleTaken, format = "%Y-%m-%d %H:%M:%S")
 
-
+SSC <- filter(melt, Measurement %in% c("Suspended Sediment Concentration", "Suspended Solids", "Turbidity (FNU)"))
+SSC <- as.data.frame(sapply(SSC, gsub, pattern = "<|>", replacement = ""))
+SSC$SampleTaken <- as.POSIXct(SSC$SampleTaken, format = "%Y-%m-%d %H:%M:%S", na.rm = TRUE)
 SSC$SampleTaken <- lubridate::round_date(SSC$SampleTaken, "15 minutes") 
+
+# Convert to character to merge flow and concentration
+Flow$SampleTaken <-as.character(Flow$SampleTaken) 
 SSC$SampleTaken <-as.character(SSC$SampleTaken) 
-Value$SampleTaken <-as.character(Value$SampleTaken) 
+merged <- merge(Flow, SSC, by = c("SampleTaken", "SiteName"))
+# Remove unnecessary columns
+merged <- merged[,c(1,2,3,4,5)]
+colnames(merged) <- c('SampleTaken','Site', 'Flow', 'Conc', 'Measurement2')
+# Convert back to date-time and Conc to numeric
+merged$SampleTaken <- as.POSIXct(merged$SampleTaken, format = "%Y-%m-%d %H:%M:%S")
+merged$Conc <- as.numeric(merged$Conc)
+Flow$SampleTaken <- as.POSIXct(Flow$SampleTaken , format = "%Y-%m-%d %H:%M:%S")
 
 
-merged <- merge(Value, SSC, by = "SampleTaken" )
-merged <- merged[,c(1,2,3,5)]
+# Recode the Measurement2 column
+merged <- merged %>%
+  mutate(Measurement2 = case_when(
+    Measurement2 == 'Suspended Sediment Concentration' ~ 'SSC',
+    Measurement2 == 'Suspended Solids' ~ 'SS',
+    Measurement2 == 'Turbidity (FNU)' ~ 'FNU',
+    TRUE ~ Measurement2
+  ))
 
-colnames(merged) <- c('DateTime', 'Value', 'Site', 'Conc')
+# Print the recoded data frame to check the changes
+print(merged)
 
+# Reshape the data from long to wide format, suppressing the warning by allowing list columns
+merged_wide <- merged %>%
+  pivot_wider(names_from = Measurement2, values_from = Conc, values_fn = list)
 
-merged1 <- select(merged, DateTime, Value, Conc)
-merged1$DateTime <- as.POSIXct(merged1$DateTime, format = "%Y-%m-%d %H:%M:%S")
-merged1$Date <- format(as.POSIXct(merged1$DateTime,format='%m/%d/%Y %H:%M:%S'),format='%Y%m%d')
-merged1$Date2 <- format(as.POSIXct(merged1$DateTime,format='%m/%d/%Y %H:%M:%S'),format='%d/%m/%Y')
+# Filter out rows where the list columns contain 'Null'
+merged_wide2 <- merged_wide %>%
+  filter(!sapply(SSC, function(x) all(x == 'Null')))
 
+# Simplify the list columns to scalar values
+merged_wide2 <- merged_wide2 %>%
+  mutate(SSC = sapply(SSC, function(x) if(length(x) > 0) x[[1]] else NA),
+         FNU = sapply(FNU, function(x) if(length(x) > 0) x[[1]] else NA))
 
-merged1$Time <- format(merged1$DateTime, format = "%H%M%S")
-merged1$Time1 <- format(merged1$DateTime, format = "%I:%M:%S %p")
+#####  Write out merged_wide2 for external regression analysis ######################
+write.csv(merged_wide2, file = "I:/306 HCE Project/R_analysis/Rating curves/RatingCurvesGit/Outputs/merged_wide2.csv", row.names = FALSE)
 
-
-merged1$Value <- as.numeric(merged1$Value)
-#merged1$Value <- formatC(merged1$Value, digits = 2, format = "f")
-#merged1$Value <- as.numeric(merged1$Value)
-merged1$Conc <- as.numeric(merged1$Conc)
-merged1$new <- ""
-
-
-merged1 <- merged1 %>% filter(!Conc > 6000)
-
-Final <- data.frame(merged1$Value, merged1$Date,merged1$Time)
-
-nrow(Final)
-
-
-#print(Final)
-#print(Final[1:104,],right=T, row.names = FALSE)
-#print(Final[201:296,],right=T, row.names = FALSE)
-
-
-#setwd('I:/306 HCE Project/R_analysis/2023analysis/output')
-#xlsx::write.xlsx(merged1, 'merged1NTU.xlsx')
-#xlsx::write.xlsx(melt, 'melt.xlsx')
-
-merged1$Value <- as.numeric(merged1$Value)
-merged1$Conc <- as.numeric(merged1$Conc)
+###############################################################################
 
 summary(merged1$Value)
 
