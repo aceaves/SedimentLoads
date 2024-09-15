@@ -36,11 +36,13 @@ sitelist <- SiteList(dfile, "")
 Hilltop::SiteList(dfile)
 
 # Subset the list for analysis after Cyclone Gabby as many sites have no data after.
-sitelist <- sitelist[sitelist == "Waimaunu Stream at Duncans" | 
-                       sitelist == "Waikatuku Strm off Harrison Rd"]
+#sitelist <- sitelist[sitelist == "Wairoa River at Marumaru" ]
+#sitelist <- sitelist[sitelist == "Waimaunu Stream at Duncans" | 
+#                       sitelist == "Waikatuku Strm off Harrison Rd"]
+
 # Date range. 
-date1 <- "19-February-2023 00:00:00"
-date2 <- "01-July-2024 00:00:00"
+date1 <- "01-July-2021 00:00:00"
+date2 <- "12-February-2023 00:00:00"
 
 #Measurements/data that we want to pull from the Hilltop file 
 measurement <- c(	'Suspended Solids [Suspended Solids]','Suspended Sediment Concentration', "Flow") 
@@ -67,6 +69,7 @@ interval <- ""
 melt <- NULL
 
 for (j in 1:site_no) {
+  #Edit here:
   Multiple_sites <- GetData(dfile, site_id[j], measurement, date1, date2)
   print(paste("Data for site", site_id[j], ":", length(Multiple_sites)))
   
