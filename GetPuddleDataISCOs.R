@@ -18,160 +18,169 @@ Hilltop::SiteList(dfile)
 #sitelist <- sitelist[sitelist == "Waimaunu Stream at Duncans" | 
 #                       sitelist == "Waikatuku Strm off Harrison Rd"]
 
+# Grab puddle data ############################################################
 
-#Loop through sites in Puddle---------------------------------------------------
-#for (i in sitelist) { 
-
-  MyData <- getPuddleData(
-    query_option = "",
-    fromDate = "01-07-2021",
-    toDate = "01-07-2024",
-    catchments = "",
-    sites = sitelist,
-    projects = "340204",
-    measurements = "",
-    detids = c("SSMUD", "SSSAND"),
-  )
-  head(MyData, 10)
-
-#}
+MyData <- getPuddleData(
+  query_option = "",
+  fromDate = "01-07-2021",
+  toDate = "01-07-2024",
+  catchments = "",
+  sites = sitelist,
+  projects = "340204",
+  measurements = "",
+  detids = c("SSMUD", "SSSAND"),
+)
+head(MyData, 10)
   
-  # Stats for sand #############################################################
+# Stats for sand #############################################################
   
-  # Create an empty list to store the results
-  sandsplit_list <- list()
+# Create an empty list to store the results
+sandsplit_list <- list()
   
-  # Create an empty data frame to store statistics or empty any existing data in the dataframe
-  Statistics_splitsand <- data.frame(
-    site_name = character(),
-    Min = numeric(),
-    Q1 = numeric(),
-    Median = numeric(),
-    Mean = numeric(),
-    Q3 = numeric(),
-    Max = numeric(),
-    Sum = numeric(),
-    stringsAsFactors = FALSE
-  )
+# Create an empty data frame to store statistics or empty any existing data in the dataframe
+Statistics_splitsand <- data.frame(
+  site_name = character(),
+  Min = numeric(),
+  Q1 = numeric(),
+  Median = numeric(),
+  Mean = numeric(),
+  Q3 = numeric(),
+  Max = numeric(),
+  Sum = numeric(),
+  stringsAsFactors = FALSE
+)
   
-  #Loop 1 ----------------------------------------------------------------------
+#Loop 1 ----------------------------------------------------------------------
   
-  for (i in sitelist) { 
+for (i in sitelist) { 
     
-    # Subset Flow for the current SiteName (replace 'Site' with the correct column name from MyData)
-    SSSAND <- dplyr::filter(MyData, Site == i & DetID == "SSSAND")  # Add DetID filter for 'SSSAND'
+  # Subset Flow for the current SiteName (replace 'Site' with the correct column name from MyData)
+  SSSAND <- dplyr::filter(MyData, Site == i & DetID == "SSSAND")  # Add DetID filter for 'SSSAND'
     
-    if (nrow(SSSAND) > 0) {
+  if (nrow(SSSAND) > 0) {
       
-      # Ensure the 'Value' column is numeric
-      SSSAND$Value <- as.numeric(SSSAND$Value)
+    # Ensure the 'Value' column is numeric
+    SSSAND$Value <- as.numeric(SSSAND$Value)
       
-      if (all(is.na(SSSAND$Value))) {
-        warning(paste("All 'Value' data is NA for site:", i))
-        next  # Skip to the next site if all values are NA
-      }
-      
-      # Calculate statistics
-      min_val <- min(SSSAND$Value, na.rm = TRUE)
-      q1_val <- quantile(SSSAND$Value, 0.25, na.rm = TRUE)
-      median_val <- median(SSSAND$Value, na.rm = TRUE)
-      mean_val <- mean(SSSAND$Value, na.rm = TRUE)
-      q3_val <- quantile(SSSAND$Value, 0.75, na.rm = TRUE)
-      max_val <- max(SSSAND$Value, na.rm = TRUE)
-      sum_val <- sum(SSSAND$Value, na.rm = TRUE)
-      
-      # Create a new row with statistics
-      new_row <- data.frame(
-        Site = i,
-        Min = min_val,
-        Q1 = q1_val,
-        Median = median_val,
-        Mean = mean_val,
-        Q3 = q3_val,
-        Max = max_val,
-        Sum = sum_val,
-        stringsAsFactors = FALSE
-      )
-      
-      # Append the current iteration to the Load_list
-      sandsplit_list[[i]] <- SSSAND
-      
-      # Append the current iteration to the Statistics_Load
-      Statistics_splitsand <- rbind(Statistics_splitsand, new_row)
-    } else {
-      warning(paste("No data for site:", i))
+    if (all(is.na(SSSAND$Value))) {
+      warning(paste("All 'Value' data is NA for site:", i))
+      next  # Skip to the next site if all values are NA
     }
+      
+    # Calculate statistics
+    min_val <- min(SSSAND$Value, na.rm = TRUE)
+    q1_val <- quantile(SSSAND$Value, 0.25, na.rm = TRUE)
+    median_val <- median(SSSAND$Value, na.rm = TRUE)
+    mean_val <- mean(SSSAND$Value, na.rm = TRUE)
+    q3_val <- quantile(SSSAND$Value, 0.75, na.rm = TRUE)
+    max_val <- max(SSSAND$Value, na.rm = TRUE)
+    sum_val <- sum(SSSAND$Value, na.rm = TRUE)
+      
+    # Create a new row with statistics
+    new_row <- data.frame(
+      Site = i,
+      Min = min_val,
+      Q1 = q1_val,
+      Median = median_val,
+      Mean = mean_val,
+      Q3 = q3_val,
+      Max = max_val,
+      Sum = sum_val,
+      stringsAsFactors = FALSE
+    )
+      
+    # Append the current iteration to the Load_list
+    sandsplit_list[[i]] <- SSSAND
+      
+    # Append the current iteration to the Statistics_Load
+    Statistics_splitsand <- rbind(Statistics_splitsand, new_row)
+  } else {
+    warning(paste("No data for site:", i))
   }
+}
+
+# End loop 1 ------------------------------------------------------------------
   
+print(Statistics_splitsand)
   
-  print(Statistics_splitsand)
+# Repeat for mud  ###########################################################
   
-  # Repeat for mud  ###########################################################
+# Create an empty list to store the results
+mudsplit_list <- list()
   
-  # Create an empty list to store the results
-  mudsplit_list <- list()
+# Create an empty data frame to store statistics or empty any existing data in the dataframe
+Statistics_splitmud <- data.frame(
+  site_name = character(),
+  Min = numeric(),
+  Q1 = numeric(),
+  Median = numeric(),
+  Mean = numeric(),
+  Q3 = numeric(),
+  Max = numeric(),
+  Sum = numeric(),
+  stringsAsFactors = FALSE
+)
   
-  # Create an empty data frame to store statistics or empty any existing data in the dataframe
-  Statistics_splitmud <- data.frame(
-    site_name = character(),
-    Min = numeric(),
-    Q1 = numeric(),
-    Median = numeric(),
-    Mean = numeric(),
-    Q3 = numeric(),
-    Max = numeric(),
-    Sum = numeric(),
-    stringsAsFactors = FALSE
-  )
+#Loop 2----------------------------------------------------------------------
   
-  #Loop 2----------------------------------------------------------------------
-  
-  for (i in sitelist) { 
+for (i in sitelist) { 
     
-    # Subset Flow for the current SiteName (replace 'Site' with the correct column name from MyData)
-    SSMUD <- dplyr::filter(MyData, Site == i & DetID == "SSMUD")  # Add DetID filter for 'SSMUD'
+  # Subset Flow for the current SiteName (replace 'Site' with the correct column name from MyData)
+  SSMUD <- dplyr::filter(MyData, Site == i & DetID == "SSMUD")  # Add DetID filter for 'SSMUD'
     
-    if (nrow(SSMUD) > 0) {
+  if (nrow(SSMUD) > 0) {
       
-      # Ensure the 'Value' column is numeric
-      SSMUD$Value <- as.numeric(SSMUD$Value)
+    # Ensure the 'Value' column is numeric
+    SSMUD$Value <- as.numeric(SSMUD$Value)
       
-      if (all(is.na(SSMUD$Value))) {
-        warning(paste("All 'Value' data is NA for site:", i))
-        next  # Skip to the next site if all values are NA
-      }
-      
-      # Calculate statistics
-      min_val <- min(SSMUD$Value, na.rm = TRUE)
-      q1_val <- quantile(SSMUD$Value, 0.25, na.rm = TRUE)
-      median_val <- median(SSMUD$Value, na.rm = TRUE)
-      mean_val <- mean(SSMUD$Value, na.rm = TRUE)
-      q3_val <- quantile(SSMUD$Value, 0.75, na.rm = TRUE)
-      max_val <- max(SSMUD$Value, na.rm = TRUE)
-      sum_val <- sum(SSMUD$Value, na.rm = TRUE)
-      
-      # Create a new row with statistics
-      new_row <- data.frame(
-        Site = i,
-        Min = min_val,
-        Q1 = q1_val,
-        Median = median_val,
-        Mean = mean_val,
-        Q3 = q3_val,
-        Max = max_val,
-        Sum = sum_val,
-        stringsAsFactors = FALSE
-      )
-      
-      # Append the current iteration to the Load_list
-      mudsplit_list[[i]] <- SSMUD
-      
-      # Append the current iteration to the Statistics_Load
-      Statistics_splitmud <- rbind(Statistics_splitmud, new_row)
-    } else {
-      warning(paste("No data for site:", i))
+    if (all(is.na(SSMUD$Value))) {
+      warning(paste("All 'Value' data is NA for site:", i))
+      next  # Skip to the next site if all values are NA
     }
+      
+    # Calculate statistics
+    min_val <- min(SSMUD$Value, na.rm = TRUE)
+    q1_val <- quantile(SSMUD$Value, 0.25, na.rm = TRUE)
+    median_val <- median(SSMUD$Value, na.rm = TRUE)
+    mean_val <- mean(SSMUD$Value, na.rm = TRUE)
+    q3_val <- quantile(SSMUD$Value, 0.75, na.rm = TRUE)
+    max_val <- max(SSMUD$Value, na.rm = TRUE)
+    sum_val <- sum(SSMUD$Value, na.rm = TRUE)
+      
+    # Create a new row with statistics
+    new_row <- data.frame(
+      Site = i,
+      Min = min_val,
+      Q1 = q1_val,
+      Median = median_val,
+      Mean = mean_val,
+      Q3 = q3_val,
+      Max = max_val,
+      Sum = sum_val,
+      stringsAsFactors = FALSE
+    )
+      
+    # Append the current iteration to the Load_list
+    mudsplit_list[[i]] <- SSMUD
+      
+    # Append the current iteration to the Statistics_Load
+    Statistics_splitmud <- rbind(Statistics_splitmud, new_row)
+  } else {
+    warning(paste("No data for site:", i))
   }
+}
+
+# End loop 2 ------------------------------------------------------------------
   
-  
-  print(Statistics_splitmud)
+print(Statistics_splitmud)
+
+# Merge Statistics_splitsand and Statistics_splitmud by 'Site'
+merged_statistics <- merge(Statistics_splitsand, 
+                           Statistics_splitmud, 
+                           by = "Site", 
+                           all = TRUE, 
+                           suffixes = c("_sand", "_mud"))
+
+# Print the merged data frame
+print(merged_statistics)
+
