@@ -27,9 +27,9 @@ Sys.setlocale("LC_TIME", "C")
 ############ Data inputs  ################
 
 #Set file path to ISCO Hilltop file 
-dfile <- HilltopData("I:/306 HCE Project/Hilltop/ISCO_Processing.dsn")
+#dfile <- HilltopData("I:/306 HCE Project/Hilltop/ISCO_Processing.dsn")
 #dfile <- HilltopData("N:/HilltopData/EMAR/EMARFull.dsn")
-
+dfile <- HilltopData("I:/320_Surface Water Hydrology/Hilltop_Workfiles/HilltopStitchedModelData/GabrielleModelled_Ashton.hts")
 
 # Get site list or measurement list for respective sites 
 sitelist <- SiteList(dfile, "")
@@ -39,13 +39,18 @@ Hilltop::SiteList(dfile)
 #sitelist <- sitelist[sitelist == "Wairoa River at Marumaru" ]
 #sitelist <- sitelist[sitelist == "Waimaunu Stream at Duncans" | 
 #                       sitelist == "Waikatuku Strm off Harrison Rd"]
+# Subset the list for analysis during Cyclone Gabby with Todd's modelled data:
+sitelist <- sitelist[sitelist == "Wairoa River at Marumaru" | 
+                       sitelist == "Tutaekuri River at Puketapu HBRC Site"]
+
 
 # Date range. 
 date1 <- "12-February-2023 00:00:00"
 date2 <- "19-February-2023 00:00:00"
 
-#Measurements/data that we want to pull from the Hilltop file 
-measurement <- c(	'Suspended Solids [Suspended Solids]','Suspended Sediment Concentration', "Flow") 
+#Measurements/data that we want to pull from the Hilltop file
+# Modify "Flow" to "Flow - CGModel" to pull modelled Gabrielle flows.
+measurement <- c(	'Suspended Solids [Suspended Solids]','Suspended Sediment Concentration', "Flow - CGModel") 
 
 # Read regression file into a data frame
 regression_output <- "I:/306 HCE Project/R_analysis/Rating curves/RatingCurvesGit/Outputs/Regressions/regression_output_excel.xlsx"
@@ -115,7 +120,7 @@ melt$SampleTaken <-  lubridate::floor_date(melt$SampleTaken, "15 minutes")
 melt$SampleTaken <- as.POSIXct(melt$SampleTaken, format = "%Y-%m-%d %H:%M:%S", na.rm = TRUE)
 
 
-Flow <- filter(melt, Measurement == "Flow")
+Flow <- filter(melt, Measurement == "Flow - CGModel") # Another adjustment for CG Model
 Flow$Flow <- as.numeric(Flow$Flow, na.rm = TRUE)
 Flow <- Flow %>% group_by(SampleTaken, SiteName, Measurement) %>%
   summarise(Flow = mean(Flow))
@@ -382,7 +387,7 @@ for (i in sitelist) {
 print(Statistics_Load)
 
 ##Load table output ******Make sure the dates line up with data inputs
-write.csv(Statistics_Load, file = "Statistics_Load_Feb2023_July2024.csv", row.names = FALSE)
+write.csv(Statistics_Load, file = "Statistics_Load_Cyclone_Gabrielle.csv", row.names = FALSE)
 
 ############## Clean up measure_df for export 
 
@@ -413,11 +418,12 @@ measure_df2 <- measure_df[,c(1,2,3,4,8)]
 # Print the result
 print(measure_df2)
 
-measure_df3 <- filter(measure_df2, SiteName != "Aropaoanui River at Aropaoanui" 
-                   & SiteName != "Karamu Stream at Floodgates" 
-                   & SiteName != "Mangakuri River at Nilsson Road"
-                   & SiteName != "Mangaone River at Rissington"
-                   & SiteName != "Wharerangi Stream at Codds")
-write.csv(measure_df3, file = "I:/306 HCE Project/R_analysis/Rating curves/RatingCurvesGit/Outputs/measure_df_Feb2023_July2024.csv", row.names = FALSE)
+#measure_df3 <- filter(measure_df2, SiteName != "Aropaoanui River at Aropaoanui" 
+#                   & SiteName != "Karamu Stream at Floodgates" 
+#                   & SiteName != "Mangakuri River at Nilsson Road"
+#                   & SiteName != "Mangaone River at Rissington"
+#                   & SiteName != "Wairoa River at Marumaru"
+#                   & SiteName != "Wharerangi Stream at Codds")
+write.csv(measure_df2, file = "I:/306 HCE Project/R_analysis/Rating curves/RatingCurvesGit/Outputs/measure_df_Cyclone_Gabrielle.csv", row.names = FALSE)
 
 ################################################################################
