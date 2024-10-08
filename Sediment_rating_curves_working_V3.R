@@ -41,8 +41,8 @@ Hilltop::SiteList(dfile)
 #                       sitelist == "Waikatuku Strm off Harrison Rd"]
 
 # Date range. 
-date1 <- "01-July-2021 00:00:00"
-date2 <- "12-February-2023 00:00:00"
+date1 <- "12-February-2023 00:00:00"
+date2 <- "19-February-2023 00:00:00"
 
 #Measurements/data that we want to pull from the Hilltop file 
 measurement <- c(	'Suspended Solids [Suspended Solids]','Suspended Sediment Concentration', "Flow") 
@@ -382,7 +382,7 @@ for (i in sitelist) {
 print(Statistics_Load)
 
 ##Load table output ******Make sure the dates line up with data inputs
-write.csv(Statistics_Load, file = "Statistics_Load_July2021_Feb2023.csv", row.names = FALSE)
+write.csv(Statistics_Load, file = "Statistics_Load_Feb2023_July2024.csv", row.names = FALSE)
 
 ############## Clean up measure_df for export 
 
@@ -418,6 +418,6 @@ measure_df3 <- filter(measure_df2, SiteName != "Aropaoanui River at Aropaoanui"
                    & SiteName != "Mangakuri River at Nilsson Road"
                    & SiteName != "Mangaone River at Rissington"
                    & SiteName != "Wharerangi Stream at Codds")
-write.csv(measure_df3, file = "I:/306 HCE Project/R_analysis/Rating curves/RatingCurvesGit/Outputs/measure_df_July2021_Feb2023.csv", row.names = FALSE)
+write.csv(measure_df3, file = "I:/306 HCE Project/R_analysis/Rating curves/RatingCurvesGit/Outputs/measure_df_Feb2023_July2024.csv", row.names = FALSE)
 
 ################################################################################
