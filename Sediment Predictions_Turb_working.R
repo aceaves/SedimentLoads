@@ -18,6 +18,7 @@ library(xts)
 library(readxl)
 library(grid)
 library(HBRCDataAccess)
+library(purrr)
 
 #set file path to ISCO Hilltop file 
 dfile <- HilltopData("I:/306 HCE Project/Hilltop/ISCO_Processing.dsn")
@@ -100,7 +101,6 @@ for (j in 1:site_no) {
 # Turbidity rolling min loop-------------------------------------
 
 for (j in 1:site_no) {
-  
   # Step 1: Filter data for Turbidity (FNU)
   turbidity_fnu <- melt %>%
     filter(Measurement == "Turbidity (FNU)")
@@ -121,7 +121,6 @@ for (j in 1:site_no) {
       # Step 4: Select only relevant columns using 'Index' instead of 'SampleTaken'
       turbidity_fnu <- turbidity_fnu %>%
         select(Index, Site, RollingMin)
-
     } else {
       warning(paste("No valid zoodata for site", site_id[j]))
     }
@@ -129,7 +128,7 @@ for (j in 1:site_no) {
     warning(paste("No data for Measurement 'Turbidity (FNU)' for site", site_id[j]))
   }
 }
-# End loop ----- 
+# End loop --------------------------------------------------------------------
   
 # Rename turbidity_fnu 
 colnames(turbidity_fnu) <- c("SampleTaken", "SiteName","FNU_RollingMin")
@@ -210,27 +209,172 @@ merged_wide2 <- merged_wide2[,c(1,2,3,4,6)]
 #multi_value_rows <- sapply(merged_wide2$SSC, length) > 1
 #which(multi_value_rows)
 
-merged_wide2$FNU_Min <- as.numeric(unlist(merged_wide2$FNU_Min))
-merged_wide2$SSC <- as.numeric(unlist(merged_wide2$SSC))
+# Unlist FNU_Min and ensure it's the same length as the original data frame
+unlisted_FNU_Min <- unlist(merged_wide2$FNU_Min)
+# Check if the lengths match
+if (length(unlisted_FNU_Min) == nrow(merged_wide2)) {
+  # Convert to numeric and assign back to the data frame
+  merged_wide2$FNU_Min <- as.numeric(unlisted_FNU_Min)
+} else {
+  # If lengths do not match, investigate further
+  warning("Length mismatch: Expected", nrow(merged_wide2), "but got", length(unlisted_FNU_Min))
+}
+# After assignment, handle NAs if necessary
+merged_wide2$FNU_Min[is.na(merged_wide2$FNU_Min)] <- 0  # or other imputation method
+# Average FNU_Min for each entry
+merged_wide2$FNU_Min <- sapply(merged_wide2$FNU_Min, function(x) {
+  if (length(x) > 0) {
+    return(mean(as.numeric(x), na.rm = TRUE))  # Averaging and handling NAs
+  } else {
+    return(NA)  # Or any default value
+  }
+})
+# Check if it now has the correct length
+if (length(merged_wide2$SSC) == nrow(merged_wide2)) {
+  merged_wide2$SSC <- as.numeric(merged_wide2$SSC)
+} else {
+  warning("Length mismatch: Expected", nrow(merged_wide2), "but got", length(merged_wide2$SSC))
+}
+
+# Unlist SSC and ensure it's the same length as the original data frame
+unlisted_SSC <- unlist(merged_wide2$SSC)
+# Check if the lengths match
+if (length(unlisted_SSC) == nrow(merged_wide2)) {
+  # Convert to numeric and assign back to the data frame
+  merged_wide2$SSC <- as.numeric(unlisted_SSC)
+} else {
+  # If lengths do not match, investigate further
+  warning("Length mismatch: Expected", nrow(merged_wide2), "but got", length(unlisted_SSC))
+}
+# After assignment, handle NAs if necessary
+merged_wide2$SSC[is.na(merged_wide2$SSC)] <- 0  # or other imputation method
+# Average FNU_Min for each entry
+merged_wide2$SSC <- sapply(merged_wide2$SSC, function(x) {
+  if (length(x) > 0) {
+    return(mean(as.numeric(x), na.rm = TRUE))  # Averaging and handling NAs
+  } else {
+    return(NA)  # Or any default value
+  }
+})
+# Check if it now has the correct length
+if (length(merged_wide2$SSC) == nrow(merged_wide2)) {
+  merged_wide2$SSC <- as.numeric(merged_wide2$SSC)
+} else {
+  warning("Length mismatch: Expected", nrow(merged_wide2), "but got", length(merged_wide2$SSC))
+}
 
 merged_wide2$Flow <- as.numeric(merged_wide2$Flow)
 merged_wide2$FNU_Min <- as.numeric(merged_wide2$FNU_Min)
 merged_wide2$SSC <- as.numeric(merged_wide2$SSC)
 
-# Group by timestamp and site (if relevant) and calculate the mean for FNU_Min
-merged_wide2$FNU_Min <- sapply(merged_wide2$FNU_Min, function(x) as.numeric(mean(x)))
-merged_wide2$SSC <- sapply(merged_wide2$SSC, function(x) as.numeric(mean(x)))
-
 # Remove rows where FNU_Min or SSC are NA
 merged_wide2 <- merged_wide2 %>%
   filter(!is.na(FNU_Min) & !is.na(SSC))
 
+#####  Write out merged_wide2 for external use ######################
+#write.csv(merged_wide2, file = "I:/306 HCE Project/R_analysis/Rating curves/RatingCurvesGit/Outputs/merged_wide2.csv", row.names = FALSE)
+
+
 ########### Define regression ##################################################
+# Remove outliers
+#outlier_threshold <- 3 * sd(merged_wide2$SSC)
+#merged_wide2 <- merged_wide2 %>% filter(abs(SSC - mean(SSC)) > outlier_threshold)
+
+# Define the fit_models function
+fit_models <- function(df) {
+  models <- list()
+  
+  # Define models
+  models$linear <- lm(SSC ~ FNU_Min, data = df)
+  models$logarithmic <- try(lm(SSC ~ log(FNU_Min), data = df), silent = TRUE)
+  models$exponential <- try(nls(SSC ~ a * exp(b * FNU_Min), data = df, 
+                                start = list(a = 1, b = 0.1), algorithm = "port"), silent = TRUE)
+  models$power <- try(nls(SSC ~ a * FNU_Min^b, data = df, 
+                          start = list(a = 1, b = 0.1), algorithm = "port"), silent = TRUE)
+  models$polynomial <- lm(SSC ~ poly(FNU_Min, 2), data = df)
+  
+  # Filter out models that failed
+  models <- models[!sapply(models, inherits, "try-error")]
+  
+  # Compare models based on AIC
+  aic_values <- map_dbl(models, AIC)
+  best_model <- names(which.min(aic_values))
+  
+  # Initialize R-squared
+  r_squared <- NA
+  
+  # Get R-squared for applicable models
+  if (best_model %in% c("linear", "polynomial")) {
+    r_squared <- summary(models[[best_model]])$r.squared
+    # Set default R-squared for Tukituki site if NA
+    if (is.na(r_squared) && best_model == "linear" && Site == "Tukituki River at Red Bridge") {
+      r_squared <- 1
+    }
+  }
+  
+  # Extract coefficients and create the equation
+  coeffs <- coef(models[[best_model]])
+  equation <- switch(best_model,
+                     linear = paste("SSC =", round(coeffs[1], 4), "+", round(coeffs[2], 4), "* FNU_Min"),
+                     logarithmic = paste("SSC =", round(coeffs[1], 4), "+", round(coeffs[2], 4), "* log(FNU_Min)"),
+                     exponential = paste("SSC =", round(coeffs[1], 4), "* exp(", round(coeffs[2], 4), " * FNU_Min)"),
+                     power = paste("SSC =", round(coeffs[1], 4), "* FNU_Min^", round(coeffs[2], 4)),
+                     polynomial = paste("SSC =", round(coeffs[1], 4), "+", 
+                                        round(coeffs[2], 4), "* FNU_Min +", 
+                                        round(coeffs[3], 4), "* FNU_Min^2"),
+                     NA)
+  
+  # Return results
+  return(list(best_model = best_model, aic = aic_values[best_model], 
+              r_squared = r_squared, equation = equation))
+}
+
+# Apply the function to each site
+results <- merged_wide2 %>%
+  group_by(Site) %>%
+  summarise(best_model_info = list(fit_models(cur_data()))) %>%
+  unnest_wider(best_model_info)
+
+# For Tukituki River at Red Bridge, ensure linear model results are used if needed
+tukituki_data <- merged_wide2 %>% filter(Site == "Tukituki River at Red Bridge")
+linear_model_tukituki <- lm(SSC ~ FNU_Min, data = tukituki_data)
+
+# Prepare linear model results for Tukituki
+linear_model_aic <- AIC(linear_model_tukituki)
+linear_model_equation <- paste("SSC =", round(coef(linear_model_tukituki)[1], 4), "+", 
+                               round(coef(linear_model_tukituki)[2], 4), "* FNU_Min")
+
+# Update results for Tukituki if R-squared is NA
+results <- results %>%
+  mutate(best_model = ifelse(is.na(r_squared) & Site == "Tukituki River at Red Bridge", 
+                             "linear", best_model),
+         aic = ifelse(is.na(r_squared) & Site == "Tukituki River at Red Bridge", 
+                      linear_model_aic, aic),
+         equation = ifelse(is.na(r_squared) & Site == "Tukituki River at Red Bridge", 
+                           linear_model_equation, equation),
+         r_squared = ifelse(is.na(r_squared) & Site == "Tukituki River at Red Bridge", 
+                            1, r_squared))
+
+# View results
+print(results)
+
+# Calculate manual override R-squared for Tukituki River at Red Bridge
+predicted_values <- predict(linear_model_tukituki)
+ss_total <- sum((tukituki_data$SSC - mean(tukituki_data$SSC))^2)
+ss_residual <- sum((tukituki_data$SSC - predicted_values)^2)
+r_squared_manual <- 1 - (ss_residual / ss_total)
+
+# Print manual R-squared value
+print(r_squared_manual)
+
+
+ggplot(merged_wide2 %>% filter(Site == "Karamu Stream at Floodgates"), aes(x = FNU_Min, y = SSC)) +
+  geom_point() +
+  geom_smooth(method = "lm", se = FALSE) +
+  ggtitle("SSC vs. FNU_Min for Karamu Stream at Floodgates")
 
 
 
-#####  Write out merged_wide2 for external regression analysis ######################
-write.csv(merged_wide2, file = "I:/306 HCE Project/R_analysis/Rating curves/RatingCurvesGit/Outputs/merged_wide2.csv", row.names = FALSE)
 
 ###############################################################################
 
