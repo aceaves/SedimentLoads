@@ -40,10 +40,10 @@ date1 <- "19-Feb-2023 00:00:00"
 date2 <- "01-Jul-2024 00:00:00"
 
 # Read regression file into a data frame
-regression_output <- "I:/306 HCE Project/R_analysis/Rating curves/RatingCurvesGit/Outputs/Regressions/regression_output_excel.xlsx"
-regression <- read.xlsx(regression_output)
+#regression_output <- "I:/306 HCE Project/R_analysis/Rating curves/RatingCurvesGit/Outputs/Regressions/regression_output_excel.xlsx"
+#regression <- read.xlsx(regression_output)
 # Print the data
-print(regression)
+#print(regression)
 
 ###############################################################################
 
@@ -229,12 +229,6 @@ merged_wide2$FNU_Min <- sapply(merged_wide2$FNU_Min, function(x) {
     return(NA)  # Or any default value
   }
 })
-# Check if it now has the correct length
-if (length(merged_wide2$SSC) == nrow(merged_wide2)) {
-  merged_wide2$SSC <- as.numeric(merged_wide2$SSC)
-} else {
-  warning("Length mismatch: Expected", nrow(merged_wide2), "but got", length(merged_wide2$SSC))
-}
 
 # Unlist SSC and ensure it's the same length as the original data frame
 unlisted_SSC <- unlist(merged_wide2$SSC)
@@ -256,13 +250,8 @@ merged_wide2$SSC <- sapply(merged_wide2$SSC, function(x) {
     return(NA)  # Or any default value
   }
 })
-# Check if it now has the correct length
-if (length(merged_wide2$SSC) == nrow(merged_wide2)) {
-  merged_wide2$SSC <- as.numeric(merged_wide2$SSC)
-} else {
-  warning("Length mismatch: Expected", nrow(merged_wide2), "but got", length(merged_wide2$SSC))
-}
 
+# Back to numeric
 merged_wide2$Flow <- as.numeric(merged_wide2$Flow)
 merged_wide2$FNU_Min <- as.numeric(merged_wide2$FNU_Min)
 merged_wide2$SSC <- as.numeric(merged_wide2$SSC)
@@ -271,14 +260,19 @@ merged_wide2$SSC <- as.numeric(merged_wide2$SSC)
 merged_wide2 <- merged_wide2 %>%
   filter(!is.na(FNU_Min) & !is.na(SSC))
 
+# Remove outliers: Keep values within the threshold
+outlier_threshold <- 3 * sd(merged_wide2$FNU_Min)
+
+# Filter to keep values within 3 standard deviations from the mean
+merged_wide2 <- merged_wide2 %>% 
+  filter(abs(FNU_Min - mean(FNU_Min)) <= outlier_threshold)
+
+
 #####  Write out merged_wide2 for external use ######################
 #write.csv(merged_wide2, file = "I:/306 HCE Project/R_analysis/Rating curves/RatingCurvesGit/Outputs/merged_wide2.csv", row.names = FALSE)
 
 
 ########### Define regression ##################################################
-# Remove outliers
-#outlier_threshold <- 3 * sd(merged_wide2$SSC)
-#merged_wide2 <- merged_wide2 %>% filter(abs(SSC - mean(SSC)) > outlier_threshold)
 
 # Define the fit_models function
 fit_models <- function(df) {
@@ -368,72 +362,51 @@ r_squared_manual <- 1 - (ss_residual / ss_total)
 print(r_squared_manual)
 
 
-ggplot(merged_wide2 %>% filter(Site == "Karamu Stream at Floodgates"), aes(x = FNU_Min, y = SSC)) +
+ggplot(merged_wide2 %>% filter(Site == "Tukituki River at Red Bridge"), aes(x = FNU_Min, y = SSC)) +
   geom_point() +
   geom_smooth(method = "lm", se = FALSE) +
-  ggtitle("SSC vs. FNU_Min for Karamu Stream at Floodgates")
+  ggtitle("SSC vs. FNU_Min for Tukituki River at Red Bridge")
+
+ggplot(merged_wide2 %>% filter(Site == "Karamu Stream at Floodgates"), aes(x = FNU_Min, y = SSC)) +
+  geom_point() +
+  geom_smooth(method = "lm", formula = y ~ poly(x, 2), se = FALSE) +  # Polynomial regression (degree 2)
+  ggtitle("SSC vs. FNU_Min for Karamu Stream at Floodgates (Polynomial Fit)") +
+  labs(x = "FNU_Min", y = "SSC")  # Axis labels
 
 
 
+######## Graph SSC vs turbidity ################################################
 
-###############################################################################
+# Filter the dataset for "Karamu Stream at Floodgates"
+karamu_data <- merged_wide2 %>% filter(Site == "Karamu Stream at Floodgates")
 
-summary(merged1$Value)
-
-
-Final$merged1.Value <- as.numeric(Final$merged1.Value)
-summary(merged1$Value)
-
-###### Add filter to remove outliers
-
-# Calculate the mean and standard deviation of the values
-mean_value <- mean(merged1$Value)
-sd_value <- sd(merged1$Value)
-
-# Define a threshold for identifying high outliers (e.g., 3 times the standard deviation)
-#threshold <- mean_value + 3 * sd_value
-threshold <- 200
-
-# Subset the data frame to remove rows with high outliers
-filtered_df <- merged1[merged1$Value <= threshold, ]
-
-# Print the filtered data frame
-#print(filtered_df)
-
-#_________________________________________________________________________________________
-# Graph SSC vs turbidity
-
-# Fit the linear regression model
-lm_model <- lm(Conc ~ Value, data = filtered_df)
+# Fit the regression model for SSC ~ FNU_Min
+lm_model <- lm(SSC ~ FNU_Min, data = karamu_data)
 
 # Get R-squared value from the model summary
 r_squared <- summary(lm_model)$r.squared
 
-p <- ggplot(data = filtered_df, aes(x = Value, y = Conc)) +
+# Create the plot
+p <- ggplot(data = karamu_data, aes(x = FNU_Min, y = SSC)) +
   geom_point(size = 2, color = "blue") +    # Customize the points
   scale_y_continuous() +
   scale_x_continuous() +
   geom_smooth(method = "lm", se = TRUE, color = "red") +  # Add regression
-  labs(title = paste("Sediment Scatter Plot with Best-Fit Regression Line -", Sites), # Add title
-       x = "Value (FNU)",                 # X-axis label
+  labs(title = "SSC vs. FNU_Min for Karamu Stream at Floodgates",
+       x = "FNU (Value)",                 # X-axis label
        y = "SSC (mg/l)") +               # Y-axis label
-  geom_text(aes(x = max(Value), y = max(Conc),
+  geom_text(aes(x = max(FNU_Min), y = max(SSC),
                 label = paste("y =", round(lm_model$coefficients[1], 2), "+", 
-                              round(lm_model$coefficients[2], 2), "x")),
+                              round(lm_model$coefficients[2], 2), "* FNU_Min")),
             color = "black", hjust = 1.75, vjust = 1) +
   geom_text(x = Inf, y = Inf,  # Position the text in the upper right corner
             label = paste("R-squared =", round(r_squared, 3)),
             hjust = 2, vjust = 5, nudge_x = -0.2, nudge_y = -0.2,
-            size = 4, color = "black")
-  theme_minimal()  
-p
+            size = 4, color = "black") +
+  theme_minimal()  # Use a minimal theme
+
+# Convert to an interactive plot
 ggplotly(p)
-
-# Convert the ggplot object to a plotly object
-#interactive_plot <- ggplotly(p)
-
-# View the interactive plot
-#interactive_plot
 
 ################################################################################
 
