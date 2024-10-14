@@ -7,6 +7,7 @@ library(Hilltop)
 library(dplyr)
 library(scales)
 library(ggplot2)
+library(plotly)
 library(tidyverse)
 library(hms) 
 library(lubridate) 
@@ -352,6 +353,26 @@ results <- results %>%
 # View results
 print(results)
 
+# Calculate manual override regression equation for Karamu
+# Fit a polynomial regression model explicitly
+polynomial_model <- lm(SSC ~ FNU_Min + I(FNU_Min^2), data = karamu_data)
+
+# Extract coefficients
+coeffs <- coef(polynomial_model)
+
+# Equation formatting
+equation <- paste("SSC =", round(coeffs[1], 4), "+", 
+                  round(coeffs[2], 4), "* FNU_Min +", 
+                  round(coeffs[3], 4), "* FNU_Min^2")
+
+# Get R-squared value
+r_squared <- summary(polynomial_model)$r.squared
+
+# Print results
+print(paste("Equation:", equation))
+print(paste("R-squared:", round(r_squared, 4)))
+
+
 # Calculate manual override R-squared for Tukituki River at Red Bridge
 predicted_values <- predict(linear_model_tukituki)
 ss_total <- sum((tukituki_data$SSC - mean(tukituki_data$SSC))^2)
@@ -361,7 +382,9 @@ r_squared_manual <- 1 - (ss_residual / ss_total)
 # Print manual R-squared value
 print(r_squared_manual)
 
+######## Graph SSC vs turbidity ################################################
 
+# Basic plots
 ggplot(merged_wide2 %>% filter(Site == "Tukituki River at Red Bridge"), aes(x = FNU_Min, y = SSC)) +
   geom_point() +
   geom_smooth(method = "lm", se = FALSE) +
@@ -374,38 +397,86 @@ ggplot(merged_wide2 %>% filter(Site == "Karamu Stream at Floodgates"), aes(x = F
   labs(x = "FNU_Min", y = "SSC")  # Axis labels
 
 
+####### Tuki
 
-######## Graph SSC vs turbidity ################################################
-
-# Filter the dataset for "Karamu Stream at Floodgates"
-karamu_data <- merged_wide2 %>% filter(Site == "Karamu Stream at Floodgates")
+# Filter the dataset for "Tukituki River at Red Bridge"
+tuki_data <- merged_wide2 %>% filter(Site == "Tukituki River at Red Bridge")
 
 # Fit the regression model for SSC ~ FNU_Min
-lm_model <- lm(SSC ~ FNU_Min, data = karamu_data)
+lm_model <- lm(SSC ~ FNU_Min, data = tuki_data)
 
 # Get R-squared value from the model summary
 r_squared <- summary(lm_model)$r.squared
 
-# Create the plot
+# Create the plot with further adjustments
+p <- ggplot(data = tuki_data, aes(x = FNU_Min, y = SSC)) +
+  geom_point(size = 2, color = "blue") +    # Customize the points
+  scale_y_continuous() +
+  scale_x_continuous() +
+  geom_smooth(method = "lm", se = TRUE, color = "red") +  # Add regression line
+  labs(title = "SSC vs. FNU_Min for Tukituki River at Red Bridge",
+       x = "FNU (Value)",                 # X-axis label
+       y = "SSC (mg/l)") +               # Y-axis label
+  
+  # Move the equation text further up and to the right
+  geom_text(aes(x = median(FNU_Min) + 0.3*diff(range(FNU_Min)), 
+                y = min(SSC) + 0.2*diff(range(SSC)),
+                label = paste("y =", round(lm_model$coefficients[1], 2), "+", 
+                              round(lm_model$coefficients[2], 2), "* FNU_Min")),
+            color = "black", hjust = 0.5, vjust = 1) +
+  
+  # Move the R-squared text further up and to the right
+  geom_text(aes(x = median(FNU_Min) + 0.3*diff(range(FNU_Min)), 
+                y = min(SSC) + 0.15*diff(range(SSC)),
+                label = paste("R-squared =", round(r_squared, 3))),
+            hjust = 0.5, vjust = 1, size = 4, color = "black") +
+  
+  theme_minimal()  # Use a minimal theme
+# Display the plot
+p
+# Convert to an interactive plot using plotly
+ggplotly(p)
+
+########## Karamu 
+
+# Filter the dataset for "Karamu Stream at Floodgates"
+karamu_data <- merged_wide2 %>% filter(Site == "Karamu Stream at Floodgates")
+
+# Fit a polynomial regression model explicitly
+polynomial_model <- lm(SSC ~ FNU_Min + I(FNU_Min^2), data = karamu_data)
+
+# Get coefficients and R-squared value
+coeffs <- coef(polynomial_model)
+r_squared <- summary(polynomial_model)$r.squared
+
+# Create the plot with further adjustments
 p <- ggplot(data = karamu_data, aes(x = FNU_Min, y = SSC)) +
   geom_point(size = 2, color = "blue") +    # Customize the points
   scale_y_continuous() +
   scale_x_continuous() +
-  geom_smooth(method = "lm", se = TRUE, color = "red") +  # Add regression
-  labs(title = "SSC vs. FNU_Min for Karamu Stream at Floodgates",
+  geom_smooth(method = "lm", formula = y ~ poly(x, 2), se = TRUE, color = "red") +  # Polynomial fit (degree 2)
+  labs(title = "SSC vs. FNU_Min for Karamu Stream at Floodgates (Polynomial Fit)",
        x = "FNU (Value)",                 # X-axis label
        y = "SSC (mg/l)") +               # Y-axis label
-  geom_text(aes(x = max(FNU_Min), y = max(SSC),
-                label = paste("y =", round(lm_model$coefficients[1], 2), "+", 
-                              round(lm_model$coefficients[2], 2), "* FNU_Min")),
-            color = "black", hjust = 1.75, vjust = 1) +
-  geom_text(x = Inf, y = Inf,  # Position the text in the upper right corner
-            label = paste("R-squared =", round(r_squared, 3)),
-            hjust = 2, vjust = 5, nudge_x = -0.2, nudge_y = -0.2,
-            size = 4, color = "black") +
+  
+  # Move the equation text further up and to the right
+  geom_text(aes(x = median(FNU_Min) + 0.3 * diff(range(FNU_Min)), 
+                y = min(SSC) + 0.2 * diff(range(SSC)),
+                label = paste("SSC =", round(coeffs[1], 4), "+", 
+                              round(coeffs[2], 4), "* FNU_Min +", 
+                              round(coeffs[3], 4), "* FNU_Min^2")),
+            color = "black", hjust = 0.5, vjust = 1) +
+  
+  # Move the R-squared text further up and to the right
+  geom_text(aes(x = median(FNU_Min) + 0.3 * diff(range(FNU_Min)), 
+                y = min(SSC) + 0.15 * diff(range(SSC)),
+                label = paste("R-squared =", round(r_squared, 4))),
+            hjust = 0.5, vjust = 1, size = 4, color = "black") +
+  
   theme_minimal()  # Use a minimal theme
-
-# Convert to an interactive plot
+# Display the plot
+p
+# Convert to an interactive plot using plotly
 ggplotly(p)
 
 ################################################################################
