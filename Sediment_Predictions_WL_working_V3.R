@@ -27,9 +27,9 @@ Sys.setlocale("LC_TIME", "C")
 ############ Data inputs  ################
 
 #Set file path to ISCO Hilltop file 
-#dfile <- HilltopData("I:/306 HCE Project/Hilltop/ISCO_Processing.dsn")
+dfile <- HilltopData("I:/306 HCE Project/Hilltop/ISCO_Processing.dsn")
 #dfile <- HilltopData("N:/HilltopData/EMAR/EMARFull.dsn")
-dfile <- HilltopData("I:/320_Surface Water Hydrology/Hilltop_Workfiles/HilltopStitchedModelData/GabrielleModelled_Ashton.hts")
+#dfile <- HilltopData("I:/320_Surface Water Hydrology/Hilltop_Workfiles/HilltopStitchedModelData/GabrielleModelled_Ashton.hts")
 
 # Get site list or measurement list for respective sites 
 sitelist <- SiteList(dfile, "")
@@ -39,21 +39,24 @@ Hilltop::SiteList(dfile)
 #sitelist <- sitelist[sitelist == "Wairoa River at Marumaru" ]
 #sitelist <- sitelist[sitelist == "Waimaunu Stream at Duncans" | 
 #                       sitelist == "Waikatuku Strm off Harrison Rd"]
+#sitelist <- sitelist[sitelist == "Karamu Stream at Floodgates" | 
+#                       sitelist == "Tukituki River at Red Bridge"]
+
 # Subset the list for analysis during Cyclone Gabby with Todd's modelled data:
-sitelist <- sitelist[sitelist == "Wairoa River at Marumaru" | 
-                       sitelist == "Tutaekuri River at Puketapu HBRC Site"]
+#sitelist <- sitelist[sitelist == "Wairoa River at Marumaru" | 
+#                      sitelist == "Tutaekuri River at Puketapu HBRC Site"]
 
 
 # Date range. 
-date1 <- "12-February-2023 00:00:00"
-date2 <- "19-February-2023 00:00:00"
+date1 <- "01-July-2021 00:00:00"
+date2 <- "12-February-2023 00:00:00"
 
 #Measurements/data that we want to pull from the Hilltop file
 # Modify "Flow" to "Flow - CGModel" to pull modelled Gabrielle flows.
-measurement <- c(	'Suspended Solids [Suspended Solids]','Suspended Sediment Concentration', "Flow - CGModel") 
+measurement <- c(	'Suspended Solids [Suspended Solids]','Suspended Sediment Concentration', "Flow") # Adjust for CG Model. Change to "Flow - CGModel" otherwise just "Flow".
 
 # Read regression file into a data frame
-regression_output <- "I:/306 HCE Project/R_analysis/Rating curves/RatingCurvesGit/Outputs/Regressions/regression_output_excel.xlsx"
+regression_output <- "I:/306 HCE Project/R_analysis/SedimentLoads/Outputs/Regressions/regression_output_excel.xlsx"
 regression <- read.xlsx(regression_output)
 # Print the data
 print(regression)
@@ -120,7 +123,7 @@ melt$SampleTaken <-  lubridate::floor_date(melt$SampleTaken, "15 minutes")
 melt$SampleTaken <- as.POSIXct(melt$SampleTaken, format = "%Y-%m-%d %H:%M:%S", na.rm = TRUE)
 
 
-Flow <- filter(melt, Measurement == "Flow - CGModel") # Another adjustment for CG Model
+Flow <- filter(melt, Measurement == "Flow") # Another adjustment for CG Model. Change to "Flow - CGModel" otherwise just "Flow"
 Flow$Flow <- as.numeric(Flow$Flow, na.rm = TRUE)
 Flow <- Flow %>% group_by(SampleTaken, SiteName, Measurement) %>%
   summarise(Flow = mean(Flow))
@@ -157,7 +160,7 @@ merged$Measurement2[merged$Measurement2 == 'Suspended Solids'] <- "SS"
 merged1 <- filter(merged, Measurement2 == 'SSC')
 
 #####  Write out merged1 for external regression analysis ######################
-#write.csv(merged1, file = "I:/306 HCE Project/R_analysis/Rating curves/RatingCurvesGit/Outputs/merged1.csv", row.names = FALSE)
+#write.csv(merged1, file = "I:/306 HCE Project/R_analysis/SedimentLoads/Outputs/merged1.csv", row.names = FALSE)
 
 ###############################################################################
 
@@ -165,7 +168,6 @@ merged1 <- filter(merged, Measurement2 == 'SSC')
 
 # Create an empty list to store the results
 Load_list <- list()
-
 # Create an empty data frame to store statistics or empty any existing data in the dataframe
 Statistics_Load <- data.frame(
   site_name = character(),
@@ -291,7 +293,7 @@ for (i in sitelist) {
 ################################################################################
 
 #Set working directory for outputs and customise as needed (date etc)
-setwd('I:/306 HCE Project/R_analysis/Rating curves/RatingCurvesGit/Outputs')
+setwd('I:/306 HCE Project/R_analysis/SedimentLoads/Outputs')
 
 # Create measure data frame
 # If measure is a list of data frames, bind them into a single data frame
@@ -300,10 +302,19 @@ measure_df <- bind_rows(Load_list)
 measure_df$SiteName <- as.character(measure_df$SiteName)
 sitelist <- as.character(sitelist)
 
+###### Main output table ########
+# Print the resulting table
+print(Statistics_Load)
+
+##Load table output ******Make sure the dates line up with data inputs
+write.csv(Statistics_Load, file = "Statistics_Load_Cyclone_Gabrielle.csv", row.names = FALSE)
+
+#####  Plot Exports  ###########################################################
+
 #Loop 3 through sites-----------------------------------------------------------
 for (i in sitelist) { 
   
-#####  Plot Exports  ###########################################################
+
   
   measure1 <- filter(measure_df, SiteName == i)
   merged2 <- filter(merged, Site == i)
@@ -383,12 +394,6 @@ for (i in sitelist) {
 
 ###### More Outputs  ###########################################################
 
-# Print the resulting table
-print(Statistics_Load)
-
-##Load table output ******Make sure the dates line up with data inputs
-write.csv(Statistics_Load, file = "Statistics_Load_Cyclone_Gabrielle.csv", row.names = FALSE)
-
 ############## Clean up measure_df for export 
 
 # Convert to cumecs
@@ -424,6 +429,6 @@ print(measure_df2)
 #                   & SiteName != "Mangaone River at Rissington"
 #                   & SiteName != "Wairoa River at Marumaru"
 #                   & SiteName != "Wharerangi Stream at Codds")
-write.csv(measure_df2, file = "I:/306 HCE Project/R_analysis/Rating curves/RatingCurvesGit/Outputs/measure_df_Cyclone_Gabrielle.csv", row.names = FALSE)
+write.csv(measure_df2, file = "I:/306 HCE Project/R_analysis/SedimentLoads/Outputs/measure_df_Cyclone_Gabrielle.csv", row.names = FALSE)
 
 ################################################################################

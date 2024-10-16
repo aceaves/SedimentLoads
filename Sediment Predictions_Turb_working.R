@@ -40,12 +40,6 @@ measurement <- c(	'Suspended Solids [Suspended Solids]','Suspended Sediment Conc
 date1 <- "19-Feb-2023 00:00:00"
 date2 <- "01-Jul-2024 00:00:00"
 
-# Read regression file into a data frame
-#regression_output <- "I:/306 HCE Project/R_analysis/Rating curves/RatingCurvesGit/Outputs/Regressions/regression_output_excel.xlsx"
-#regression <- read.xlsx(regression_output)
-# Print the data
-#print(regression)
-
 ###############################################################################
 
 #Loop 1 through sites-----------------------------------------------------------
@@ -270,7 +264,7 @@ merged_wide2 <- merged_wide2 %>%
 
 
 #####  Write out merged_wide2 for external use ######################
-#write.csv(merged_wide2, file = "I:/306 HCE Project/R_analysis/Rating curves/RatingCurvesGit/Outputs/merged_wide2.csv", row.names = FALSE)
+#write.csv(merged_wide2, file = "I:/306 HCE Project/R_analysis/SedimentLoads/Outputs/merged_wide2.csv", row.names = FALSE)
 
 
 ########### Define regression ##################################################
@@ -354,6 +348,7 @@ results <- results %>%
 print(results)
 
 # Calculate manual override regression equation for Karamu
+karamu_data <- merged_wide2 %>% filter(Site == "Karamu Stream at Floodgates")
 # Fit a polynomial regression model explicitly
 polynomial_model <- lm(SSC ~ FNU_Min + I(FNU_Min^2), data = karamu_data)
 
@@ -481,3 +476,322 @@ ggplotly(p)
 
 ################################################################################
 
+############ Update regression table with results from above ###################
+
+# Read regression file into a data frame
+regression_output <- "I:/306 HCE Project/R_analysis/SedimentLoads/Outputs/Regressions/regression_output_turb.xlsx"
+regression <- read.xlsx(regression_output)
+# Print the data
+print(regression)
+
+###############################################################################
+
+# Rerun this piece to remove midnight NAs.
+
+# Data pulled from Hilltop has different time frequencies. 
+# The aggregate function is used to aggregate data to 15 minute intervals.
+melt$SampleTaken <-  lubridate::floor_date(melt$SampleTaken, "15 minutes")
+melt$SampleTaken <- as.POSIXct(melt$SampleTaken, format = "%Y-%m-%d %H:%M:%S", na.rm = TRUE)
+
+
+Flow <- filter(melt, Measurement == "Flow") # Another adjustment for CG Model. Change to "Flow - CGModel" otherwise just "Flow"
+Flow$Flow <- as.numeric(Flow$Flow, na.rm = TRUE)
+Flow <- Flow %>% group_by(SampleTaken, SiteName, Measurement) %>%
+  summarise(Flow = mean(Flow))
+Flow <- Flow[,c(1,2,4)]
+#Flow <- na.omit(Flow)
+# Omit rows with negative values in columns 1, 2, and 4
+Flow <- Flow[!( Flow[, 3] < 0), ]
+# More data cleaning 
+# Remove rows with dodgy flow for the specified SiteName
+Flow <- subset(Flow, !(SiteName == "Mangamaire Stream at Cooks Tooth Rd" & Flow > 434459))
+Flow <- subset(Flow, !(SiteName == "Waiau River at Ardkeen" & Flow < 100000))
+
+###############################################################################
+
+
+# Subset merged_wide
+merged_wide_sub <- merged_wide[,c(1,2,4)]
+# Rename column names for the new dataframe 
+colnames(merged_wide_sub) <- c("SampleTaken","SiteName","FNU_Min")
+# Merge datasets
+FlowFNU_bind <- merge(Flow, merged_wide_sub, by = c("SampleTaken", "SiteName"))
+# Average FNU_Min for each entry
+FlowFNU_bind$FNU_Min <- sapply(FlowFNU_bind$FNU_Min, function(x) {
+  if (length(x) > 0) {
+    return(mean(as.numeric(x), na.rm = TRUE))  # Averaging and handling NAs
+  } else {
+    return(NA)  # Or any default value
+  }
+})
+# Remove rows where FNU_Min is NaN or 0
+FlowFNU_bind <- FlowFNU_bind[!is.na(FlowFNU_bind$FNU_Min) & FlowFNU_bind$FNU_Min != 0, ]
+
+# View the merged dataset
+head(FlowFNU_bind)
+
+
+#Loop 2 through sites-----------------------------------------------------------
+
+# Create an empty list to store the results
+Load_list <- list()
+# Create an empty data frame to store statistics or empty any existing data in the dataframe
+Statistics_Load <- data.frame(
+  site_name = character(),
+  Min = numeric(),
+  Q1 = numeric(),
+  Median = numeric(),
+  Mean = numeric(),
+  Q3 = numeric(),
+  Max = numeric(),
+  Sum = numeric(),
+  stringsAsFactors = FALSE)
+
+# Iterate over sitelist
+for (i in sitelist) { 
+  # Subset Flow for the current SiteName
+  Flow1 <- dplyr::filter(FlowFNU_bind, SiteName == i)
+  
+  # Assuming 'SiteName' is the key for the lookup
+  lookup_site <- i
+  
+  # Perform lookup to get the corresponding predicted concentration values for regression type
+  lookup_result <- regression[regression$SiteName == lookup_site, c("RegressionType", "Slope", "Linear_Intercept", "Exp_Power", "Exp_X", "X_Squared", "Poly_X", "Poly_Intercept", "Log", "Log_Intercept", "Power_X", "Power_Exp")]
+  
+  # Check if the lookup was successful
+  if (nrow(lookup_result) > 0) {
+    regression_type <- lookup_result$RegressionType
+    
+    # Process according to regression type
+    if (regression_type == "Exponential") {
+      Flow1$PredConc <-  exp(lookup_result$Exp_X * Flow1$FNU_Min) * lookup_result$Exp_Power 
+    } else if (regression_type == "Polynomial") {
+      Flow1$PredConc <- lookup_result$X_Squared * Flow1$FNU_Min^2 + lookup_result$Poly_X * Flow1$FNU_Min + lookup_result$Poly_Intercept
+    } else if (regression_type == "Log") {
+      Flow1$PredConc <- lookup_result$Log * log(Flow1$FNU_Min) + lookup_result$Log_Intercept
+    } else if (regression_type == "Power") {
+      Flow1$PredConc <- lookup_result$Power_X * Flow1$FNU_Min ^ lookup_result$Power_Exp
+    } else if (regression_type == "Linear") {
+      Flow1$PredConc <- lookup_result$Slope * Flow1$FNU_Min + lookup_result$Linear_Intercept # slope in l/s
+    } 
+    
+    # Remove negative values from regressions
+    Flow1$PredConc[Flow1$PredConc < 0] <- 0
+    
+    # Calculate the total time associated with each flow value
+    Flow1$TimeDiff <- dplyr::lead(Flow1$SampleTaken) - Flow1$SampleTaken
+    Flow1$TimeDiff[is.na(Flow1$TimeDiff)] <- 900
+    Flow1$TimeDiff[Flow1$TimeDiff > 900] <- 900
+    
+    # Convert time differences
+    Flow1$DiffSecs <- as.numeric(Flow1$TimeDiff, units = 'secs')
+    Flow1$DiffHours <- pmin(as.numeric(Flow1$TimeDiff, units = 'hours'), 0.25)
+    
+    # Calculate Load
+    Flow1$Load <- Flow1$PredConc * Flow1$Flow
+    Flow1$Load <- Flow1$Load / 1000000000  # Convert load from mg to T
+    
+    # Initialize AccumLoad and calculate it
+    Flow1$AccumLoad <- numeric(nrow(Flow1))
+    if (length(Flow1$Load) > 0) {
+      Flow1$AccumLoad <- Reduce("+", Flow1$Load * Flow1$DiffSecs, accumulate = TRUE)
+    }
+    
+    # Get summary statistics for the current iteration for load
+    if (!is.null(Flow1$Load) && length(Flow1$Load) > 0 && !all(is.na(Flow1$Load))) {
+      summary_stats <- summary(Flow1$Load)
+      min_val <- round(as.numeric(summary_stats[1]), 2) 
+      min_val <- if (!is.na(min_val)) min_val else NA
+      q1_val <- round(as.numeric(summary_stats[2]), 2) 
+      q1_val <- if (!is.na(q1_val)) q1_val else NA
+      median_val <- round(as.numeric(summary_stats[3]), 2) 
+      median_val <- if (!is.na(median_val)) median_val else NA
+      mean_val <- round(as.numeric(summary_stats[4]), 2) 
+      mean_val <- if (!is.na(mean_val)) mean_val else NA
+      q3_val <- round(as.numeric(summary_stats[5]), 2) 
+      q3_val <- if (!is.na(q3_val)) q3_val else NA
+      max_val <- round(as.numeric(summary_stats[6]), 2) 
+      max_val <- if (!is.na(max_val)) max_val else NA
+    } else {
+      min_val <- NA
+      q1_val <- NA
+      median_val <- NA
+      mean_val <- NA
+      q3_val <- NA
+      max_val <- NA
+    }
+    
+    if (!is.null(Flow1$AccumLoad) && length(Flow1$AccumLoad) > 0) {
+      sum_val <- tail(Flow1$AccumLoad, 1)
+    } else {
+      sum_val <- NA
+    }
+    
+    # Create a new row with statistics
+    new_row <- data.frame(
+      SiteName = i,
+      Min = min_val,
+      Q1 = q1_val,
+      Median = median_val,
+      Mean = mean_val,
+      Q3 = q3_val,
+      Max = max_val,
+      Sum = sum_val,
+      stringsAsFactors = FALSE
+    )
+    
+    # Append the current iteration to the Load_list
+    Load_list[[i]] <- Flow1
+    
+    # Append the current iteration to the Statistics_Load
+    if (!any(is.na(new_row))) {
+      Statistics_Load <- rbind(Statistics_Load, new_row)
+    } else {
+      warning(paste("Invalid data or summary statistics for site:", i))
+    }
+  } else {
+    cat("Site not found in the lookup table:", lookup_site, "\n")
+  } 
+}
+# End loop 2 -------------------------------------------------------------------
+
+################################################################################
+
+#Set working directory for outputs and customise as needed (date etc)
+setwd('I:/306 HCE Project/R_analysis/SedimentLoads/Outputs')
+
+# Create measure data frame
+# If measure is a list of data frames, bind them into a single data frame
+measure_df <- bind_rows(Load_list)
+# Ensure SiteName is character in both sitelist and measure_df
+measure_df$SiteName <- as.character(measure_df$SiteName)
+sitelist <- as.character(sitelist)
+
+#Loop 3 through sites-----------------------------------------------------------
+for (i in sitelist) { 
+  
+  #####  Plot Exports  ###########################################################
+  
+  measure1 <- filter(measure_df, SiteName == i)
+  merged2 <- filter(merged, Site == i)
+  merged3 <- filter(merged1, Site == i)
+  
+  ###############################
+  #Export Flowplot to a PNG file
+  filename <- paste("FLOW_", i, ".png", sep="")
+  png(filename, width=1000, height=500)
+  
+  Flowplot <- ggplot(data = measure1) +
+    geom_path(aes(x = SampleTaken, y = Flow/1000), colour = '#00364a', size = 0.4) + 
+    scale_x_datetime(date_labels = "%b %Y", date_breaks = "3 months", name = "Date") +
+    scale_y_continuous(name = "Flow (m"^"3"/s~")", labels = comma) +
+    theme(
+      axis.title = element_text(size = 17),    # Axis titles font size
+      axis.text = element_text(size = 15),     # Axis labels font size
+      plot.margin = unit(c(0.75, 0.75, 0.75, 0.75), "cm"),  # Top, right, bottom, left margins
+    )
+  print(Flowplot)
+  dev.off()
+  
+  ###############################
+  # Export Sample SSC plot to a PNG file
+  filename <- paste("SSC_", i, ".png", sep="")
+  png(filename, width=1000, height=500)
+  
+  SSC <- ggplot(data = measure1) +
+    geom_line(data = measure1, aes(x = SampleTaken, y = PredConc), colour = '#92a134') +
+    scale_x_datetime(date_labels = "%b %Y", date_breaks = "3 months", name = "Date") +
+    scale_y_continuous(name = "SSC (mg/l)", labels = comma) +
+    theme(
+      axis.title = element_text(size = 17),    # Axis titles font size
+      axis.text = element_text(size = 15),     # Axis labels font size
+      plot.margin = unit(c(0.75, 0.75, 0.75, 0.75), "cm"),  # Top, right, bottom, left margins
+    )
+  print(SSC)
+  dev.off()
+  
+  ################################
+  # Export Cumulative Sediment1 plot to a PNG file
+  filename <- paste("CUMSSC_", i, ".png", sep="")
+  png(filename, width=1000, height=500)
+  
+  CUMSSC <- ggplot(data = measure1) +
+    geom_line(data = measure1, aes(x = SampleTaken, y = AccumLoad), colour = '#f15d49') +
+    scale_x_datetime(date_labels = "%b %Y", date_breaks = "3 months", name = "Date") +
+    scale_y_continuous(name = "Cumulative sediment (T)", labels = comma) +
+    theme(
+      axis.title = element_text(size = 17),    # Axis titles font size
+      axis.text = element_text(size = 15),     # Axis labels font size
+      plot.margin = unit(c(0.75, 0.75, 0.75, 0.75), "cm"),  # Top, right, bottom, left margins
+    )
+  print(CUMSSC)
+  dev.off()
+  
+  ################################
+  # Export SSC with point samples plot to a PNG file
+  filename <- paste("SSC2_", i, ".png", sep="")
+  png(filename, width=1000, height=500)
+  
+  SSC2 <- ggplot(data = measure1) +
+    geom_line(data = measure1, aes(x = SampleTaken, y = PredConc), colour = '#92a134') +
+    geom_point(data = merged3, aes(x = SampleTaken, y = Conc, color = Measurement2),colour = '#eebd1c', size = 2) +
+    scale_x_datetime(date_labels = "%b %Y", date_breaks = "3 months", name = "Date") +
+    scale_y_continuous(name = "SSC (mg/l)", labels = comma) +
+    theme(
+      axis.title = element_text(size = 17),    # Axis titles font size
+      axis.text = element_text(size = 15),     # Axis labels font size
+      plot.margin = unit(c(0.75, 0.75, 0.75, 0.75), "cm"),  # Top, right, bottom, left margins
+    )
+  print(SSC2)
+  dev.off()
+  
+}
+#Loop 3 completed---------------------------------------------------------------
+
+###### More Outputs  ###########################################################
+
+# Print the resulting table
+print(Statistics_Load)
+
+##Load table output ******Make sure the dates line up with data inputs
+write.csv(Statistics_Load, file = "Statistics_Load_Cyclone_Gabrielle.csv", row.names = FALSE)
+
+############## Clean up measure_df for export 
+
+# Convert to cumecs
+measure_df$Flow <- measure_df$Flow/1000
+
+# Convert to date time
+measure_df$SampleTaken <- as.POSIXct(measure_df$SampleTaken, format = "%Y-%m-%d %H:%M:%S")
+
+# Define the time adjustment
+time_adjustment <- minutes(15)
+
+# Fill NA values with adjusted date from the next row
+for (i in seq_len(nrow(measure_df))) {
+  if (is.na(measure_df$SampleTaken[i])) {
+    # If the current row is NA, get the next row's date and adjust it
+    if (i < nrow(measure_df)) {
+      next_date <- measure_df$SampleTaken[i + 1]
+      if (!is.na(next_date)) {
+        measure_df$SampleTaken[i] <- next_date - time_adjustment
+      }
+    }
+  }
+}
+
+# Remove unnecessary columns
+measure_df2 <- measure_df[,c(1,2,3,4,8)]
+# Print the result
+print(measure_df2)
+
+#measure_df3 <- filter(measure_df2, SiteName != "Aropaoanui River at Aropaoanui" 
+#                   & SiteName != "Karamu Stream at Floodgates" 
+#                   & SiteName != "Mangakuri River at Nilsson Road"
+#                   & SiteName != "Mangaone River at Rissington"
+#                   & SiteName != "Wairoa River at Marumaru"
+#                   & SiteName != "Wharerangi Stream at Codds")
+write.csv(measure_df2, file = "I:/306 HCE Project/R_analysis/SedimentLoads/Outputs/measure_df_Cyclone_Gabrielle.csv", row.names = FALSE)
+
+################################################################################
+################################################################################
