@@ -38,7 +38,7 @@ Hilltop::SiteList(dfile)
 # Subset the list for analysis after Cyclone Gabby as many sites have no data after.
 #sitelist <- sitelist[sitelist == "Wairoa River at Marumaru" ]
 #sitelist <- sitelist[sitelist == "Waimaunu Stream at Duncans" | 
-#                       sitelist == "Waikatuku Strm off Harrison Rd"]
+#                      sitelist == "Waikatuku Strm off Harrison Rd"]
 #sitelist <- sitelist[sitelist == "Karamu Stream at Floodgates" | 
 #                       sitelist == "Tukituki River at Red Bridge"]
 
@@ -48,8 +48,8 @@ Hilltop::SiteList(dfile)
 
 
 # Date range. 
-date1 <- "01-July-2021 00:00:00"
-date2 <- "12-February-2023 00:00:00"
+date1 <- "01-Jul-2021 00:00:00"
+date2 <- "12-Feb-2023 00:00:00"
 
 #Measurements/data that we want to pull from the Hilltop file
 # Modify "Flow" to "Flow - CGModel" to pull modelled Gabrielle flows.
@@ -164,6 +164,22 @@ merged1 <- filter(merged, Measurement2 == 'SSC')
 
 ###############################################################################
 
+# Rerun this piece to remove midnight NAs.
+
+# Data pulled from Hilltop has different time frequencies. 
+# The aggregate function is used to aggregate data to 15 minute intervals.
+melt$SampleTaken <-  lubridate::floor_date(melt$SampleTaken, "15 minutes")
+melt$SampleTaken <- as.POSIXct(melt$SampleTaken, format = "%Y-%m-%d %H:%M:%S", na.rm = TRUE)
+
+Flow <- filter(melt, Measurement == "Flow") # Another adjustment for CG Model. Change to "Flow - CGModel" otherwise just "Flow"
+Flow$Flow <- as.numeric(Flow$Flow, na.rm = TRUE)
+Flow <- Flow %>% group_by(SampleTaken, SiteName, Measurement) %>%
+  summarise(Flow = mean(Flow))
+Flow <- Flow[,c(1,2,4)]
+#Flow <- na.omit(Flow)
+# Omit rows with negative values in columns 1, 2, and 4
+Flow <- Flow[!( Flow[, 3] < 0), ]
+
 #Loop 2 through sites-----------------------------------------------------------
 
 # Create an empty list to store the results
@@ -211,14 +227,20 @@ for (i in sitelist) {
     # Remove negative values from regressions
     Flow1$PredConc[Flow1$PredConc < 0] <- 0
     
-    # Calculate the total time associated with each flow value
-    Flow1$TimeDiff <- dplyr::lead(Flow1$SampleTaken) - Flow1$SampleTaken
+    # Ensure SampleTaken is in POSIXct format (date-time)
+    Flow1$SampleTaken <- as.POSIXct(Flow1$SampleTaken)
+    # Calculate the time difference between consecutive samples
+    Flow1$TimeDiff <- difftime(dplyr::lead(Flow1$SampleTaken), Flow1$SampleTaken, units = "secs")
+    # Check for negative time differences and replace with 900 seconds for midnight rollover
+    Flow1$TimeDiff <- ifelse(Flow1$TimeDiff < 0, 900, Flow1$TimeDiff)
+    # Replace NA with 900 seconds (15 minutes)
     Flow1$TimeDiff[is.na(Flow1$TimeDiff)] <- 900
-    Flow1$TimeDiff[Flow1$TimeDiff > 900] <- 900
-    
-    # Convert time differences
-    Flow1$DiffSecs <- as.numeric(Flow1$TimeDiff, units = 'secs')
-    Flow1$DiffHours <- pmin(as.numeric(Flow1$TimeDiff, units = 'hours'), 0.25)
+    # Ensure no time difference exceeds 900 seconds
+    Flow1$TimeDiff <- pmin(as.numeric(Flow1$TimeDiff), 900)
+    # Convert time differences to hours (up to 0.25 hours)
+    Flow1$DiffHours <- Flow1$TimeDiff / 3600
+    # Optional: Convert back to seconds if needed
+    Flow1$DiffSecs <- Flow1$TimeDiff
     
     # Calculate Load
     Flow1$Load <- Flow1$PredConc * Flow1$Flow
@@ -287,7 +309,6 @@ for (i in sitelist) {
     cat("Site not found in the lookup table:", lookup_site, "\n")
   } 
 }
-
 # End loop 2 -------------------------------------------------------------------
 
 ################################################################################
@@ -307,14 +328,12 @@ sitelist <- as.character(sitelist)
 print(Statistics_Load)
 
 ##Load table output ******Make sure the dates line up with data inputs
-write.csv(Statistics_Load, file = "Statistics_Load_Cyclone_Gabrielle.csv", row.names = FALSE)
+write.csv(Statistics_Load, file = "Statistics_Load_Feb2023_July2024_WL.csv", row.names = FALSE)
 
 #####  Plot Exports  ###########################################################
 
 #Loop 3 through sites-----------------------------------------------------------
 for (i in sitelist) { 
-  
-
   
   measure1 <- filter(measure_df, SiteName == i)
   merged2 <- filter(merged, Site == i)
@@ -398,10 +417,6 @@ for (i in sitelist) {
 
 # Convert to cumecs
 measure_df$Flow <- measure_df$Flow/1000
-
-# Convert to date time
-measure_df$SampleTaken <- as.POSIXct(measure_df$SampleTaken, format = "%Y-%m-%d %H:%M:%S")
-
 # Define the time adjustment
 time_adjustment <- minutes(15)
 
@@ -421,7 +436,7 @@ for (i in seq_len(nrow(measure_df))) {
 # Remove unnecessary columns
 measure_df2 <- measure_df[,c(1,2,3,4,8)]
 # Print the result
-print(measure_df2)
+head(measure_df2)
 
 #measure_df3 <- filter(measure_df2, SiteName != "Aropaoanui River at Aropaoanui" 
 #                   & SiteName != "Karamu Stream at Floodgates" 
@@ -429,6 +444,6 @@ print(measure_df2)
 #                   & SiteName != "Mangaone River at Rissington"
 #                   & SiteName != "Wairoa River at Marumaru"
 #                   & SiteName != "Wharerangi Stream at Codds")
-write.csv(measure_df2, file = "I:/306 HCE Project/R_analysis/SedimentLoads/Outputs/measure_df_Cyclone_Gabrielle.csv", row.names = FALSE)
+write.csv(measure_df2, file = "I:/306 HCE Project/R_analysis/SedimentLoads/Outputs/measure_df_Feb2023_July2024_WL.csv", row.names = FALSE)
 
 ################################################################################

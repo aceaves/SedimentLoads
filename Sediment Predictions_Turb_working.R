@@ -744,7 +744,6 @@ for (i in sitelist) {
     )
   print(SSC2)
   dev.off()
-  
 }
 #Loop 3 completed---------------------------------------------------------------
 
@@ -752,7 +751,6 @@ for (i in sitelist) {
 
 # Print the resulting table
 print(Statistics_Load)
-
 ##Load table output ******Make sure the dates line up with data inputs
 write.csv(Statistics_Load, file = "Statistics_Load__Feb2023_July2024_TURB.csv", row.names = FALSE)
 
@@ -760,9 +758,6 @@ write.csv(Statistics_Load, file = "Statistics_Load__Feb2023_July2024_TURB.csv", 
 
 # Convert to cumecs
 measure_df$Flow <- measure_df$Flow/1000
-
-# Convert to date time
-measure_df$SampleTaken <- as.POSIXct(measure_df$SampleTaken, format = "%Y-%m-%d %H:%M:%S")
 
 # Define the time adjustment
 time_adjustment <- minutes(15)
@@ -784,7 +779,7 @@ for (i in seq_len(nrow(measure_df))) {
 measure_df2 <- measure_df[,c(1,2,3,4,5,9,10)]
 # Print the result
 head(measure_df2)
-
+# Change name accordingly
 write.csv(measure_df2, file = "I:/306 HCE Project/R_analysis/SedimentLoads/Outputs/measure_df_Feb2023_July2024_TURB.csv", row.names = FALSE)
 
 ################################################################################
