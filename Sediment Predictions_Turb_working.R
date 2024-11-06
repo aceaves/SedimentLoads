@@ -1,6 +1,6 @@
 ################################################################################
 #Script to calculate turbidity and in turn SSC from turbidity
-#Created 16/08/2023 by Ashton Eaves
+#Created 16/08/2024 by Ashton Eaves
 
 # Load libraries 
 library(Hilltop)
@@ -262,7 +262,6 @@ outlier_threshold <- 3 * sd(merged_wide2$FNU_Min)
 merged_wide2 <- merged_wide2 %>% 
   filter(abs(FNU_Min - mean(FNU_Min)) <= outlier_threshold)
 
-
 #####  Write out merged_wide2 for external use ######################
 #write.csv(merged_wide2, file = "I:/306 HCE Project/R_analysis/SedimentLoads/Outputs/merged_wide2.csv", row.names = FALSE)
 
@@ -365,7 +364,7 @@ r_squared <- summary(polynomial_model)$r.squared
 
 # Print results
 print(paste("Equation:", equation))
-print(paste("R-squared:", round(r_squared, 4)))
+print(paste("R-squared Karamu:", round(r_squared, 3)))
 
 
 # Calculate manual override R-squared for Tukituki River at Red Bridge
@@ -375,7 +374,7 @@ ss_residual <- sum((tukituki_data$SSC - predicted_values)^2)
 r_squared_manual <- 1 - (ss_residual / ss_total)
 
 # Print manual R-squared value
-print(r_squared_manual)
+print(paste("R-squared Tukituki:", round(r_squared_manual, 3)))
 
 ######## Graph SSC vs turbidity ################################################
 
@@ -493,7 +492,6 @@ print(regression)
 melt$SampleTaken <-  lubridate::floor_date(melt$SampleTaken, "15 minutes")
 melt$SampleTaken <- as.POSIXct(melt$SampleTaken, format = "%Y-%m-%d %H:%M:%S", na.rm = TRUE)
 
-
 Flow <- filter(melt, Measurement == "Flow") # Another adjustment for CG Model. Change to "Flow - CGModel" otherwise just "Flow"
 Flow$Flow <- as.numeric(Flow$Flow, na.rm = TRUE)
 Flow <- Flow %>% group_by(SampleTaken, SiteName, Measurement) %>%
@@ -502,13 +500,8 @@ Flow <- Flow[,c(1,2,4)]
 #Flow <- na.omit(Flow)
 # Omit rows with negative values in columns 1, 2, and 4
 Flow <- Flow[!( Flow[, 3] < 0), ]
-# More data cleaning 
-# Remove rows with dodgy flow for the specified SiteName
-Flow <- subset(Flow, !(SiteName == "Mangamaire Stream at Cooks Tooth Rd" & Flow > 434459))
-Flow <- subset(Flow, !(SiteName == "Waiau River at Ardkeen" & Flow < 100000))
 
 ###############################################################################
-
 
 # Subset merged_wide
 merged_wide_sub <- merged_wide[,c(1,2,4)]
@@ -529,7 +522,6 @@ FlowFNU_bind <- FlowFNU_bind[!is.na(FlowFNU_bind$FNU_Min) & FlowFNU_bind$FNU_Min
 
 # View the merged dataset
 head(FlowFNU_bind)
-
 
 #Loop 2 through sites-----------------------------------------------------------
 
@@ -578,14 +570,20 @@ for (i in sitelist) {
     # Remove negative values from regressions
     Flow1$PredConc[Flow1$PredConc < 0] <- 0
     
-    # Calculate the total time associated with each flow value
-    Flow1$TimeDiff <- dplyr::lead(Flow1$SampleTaken) - Flow1$SampleTaken
+    # Ensure SampleTaken is in POSIXct format (date-time)
+    Flow1$SampleTaken <- as.POSIXct(Flow1$SampleTaken)
+    # Calculate the time difference between consecutive samples
+    Flow1$TimeDiff <- difftime(dplyr::lead(Flow1$SampleTaken), Flow1$SampleTaken, units = "secs")
+    # Check for negative time differences and replace with 900 seconds for midnight rollover
+    Flow1$TimeDiff <- ifelse(Flow1$TimeDiff < 0, 900, Flow1$TimeDiff)
+    # Replace NA with 900 seconds (15 minutes)
     Flow1$TimeDiff[is.na(Flow1$TimeDiff)] <- 900
-    Flow1$TimeDiff[Flow1$TimeDiff > 900] <- 900
-    
-    # Convert time differences
-    Flow1$DiffSecs <- as.numeric(Flow1$TimeDiff, units = 'secs')
-    Flow1$DiffHours <- pmin(as.numeric(Flow1$TimeDiff, units = 'hours'), 0.25)
+    # Ensure no time difference exceeds 900 seconds
+    Flow1$TimeDiff <- pmin(as.numeric(Flow1$TimeDiff), 900)
+    # Convert time differences to hours (up to 0.25 hours)
+    Flow1$DiffHours <- Flow1$TimeDiff / 3600
+    # Optional: Convert back to seconds if needed
+    Flow1$DiffSecs <- Flow1$TimeDiff
     
     # Calculate Load
     Flow1$Load <- Flow1$PredConc * Flow1$Flow
@@ -667,14 +665,16 @@ measure_df <- bind_rows(Load_list)
 measure_df$SiteName <- as.character(measure_df$SiteName)
 sitelist <- as.character(sitelist)
 
+######## Figure outputs 
+
 #Loop 3 through sites-----------------------------------------------------------
 for (i in sitelist) { 
   
   #####  Plot Exports  ###########################################################
   
   measure1 <- filter(measure_df, SiteName == i)
-  merged2 <- filter(merged, Site == i)
-  merged3 <- filter(merged1, Site == i)
+ # merged2 <- filter(merged, Site == i)
+  merged3 <- filter(merged_wide2, Site == i)
   
   ###############################
   #Export Flowplot to a PNG file
@@ -734,7 +734,7 @@ for (i in sitelist) {
   
   SSC2 <- ggplot(data = measure1) +
     geom_line(data = measure1, aes(x = SampleTaken, y = PredConc), colour = '#92a134') +
-    geom_point(data = merged3, aes(x = SampleTaken, y = Conc, color = Measurement2),colour = '#eebd1c', size = 2) +
+    geom_point(data = merged3, aes(x = SampleTaken, y = SSC, color = Measurement2),colour = '#eebd1c', size = 2) +
     scale_x_datetime(date_labels = "%b %Y", date_breaks = "3 months", name = "Date") +
     scale_y_continuous(name = "SSC (mg/l)", labels = comma) +
     theme(
@@ -754,7 +754,7 @@ for (i in sitelist) {
 print(Statistics_Load)
 
 ##Load table output ******Make sure the dates line up with data inputs
-write.csv(Statistics_Load, file = "Statistics_Load_Cyclone_Gabrielle.csv", row.names = FALSE)
+write.csv(Statistics_Load, file = "Statistics_Load__Feb2023_July2024_TURB.csv", row.names = FALSE)
 
 ############## Clean up measure_df for export 
 
@@ -781,17 +781,11 @@ for (i in seq_len(nrow(measure_df))) {
 }
 
 # Remove unnecessary columns
-measure_df2 <- measure_df[,c(1,2,3,4,8)]
+measure_df2 <- measure_df[,c(1,2,3,4,5,9,10)]
 # Print the result
-print(measure_df2)
+head(measure_df2)
 
-#measure_df3 <- filter(measure_df2, SiteName != "Aropaoanui River at Aropaoanui" 
-#                   & SiteName != "Karamu Stream at Floodgates" 
-#                   & SiteName != "Mangakuri River at Nilsson Road"
-#                   & SiteName != "Mangaone River at Rissington"
-#                   & SiteName != "Wairoa River at Marumaru"
-#                   & SiteName != "Wharerangi Stream at Codds")
-write.csv(measure_df2, file = "I:/306 HCE Project/R_analysis/SedimentLoads/Outputs/measure_df_Cyclone_Gabrielle.csv", row.names = FALSE)
+write.csv(measure_df2, file = "I:/306 HCE Project/R_analysis/SedimentLoads/Outputs/measure_df_Feb2023_July2024_TURB.csv", row.names = FALSE)
 
 ################################################################################
 ################################################################################
