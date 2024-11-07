@@ -125,10 +125,10 @@ melt$SampleTaken <- as.POSIXct(melt$SampleTaken, format = "%Y-%m-%d %H:%M:%S", n
 
 Flow <- filter(melt, Measurement == "Flow") # Another adjustment for CG Model. Change to "Flow - CGModel" otherwise just "Flow"
 Flow$Flow <- as.numeric(Flow$Flow, na.rm = TRUE)
+# Remove duplicate timesteps
 Flow <- Flow %>% group_by(SampleTaken, SiteName, Measurement) %>%
   summarise(Flow = mean(Flow))
 Flow <- Flow[,c(1,2,4)]
-#Flow <- na.omit(Flow)
 # Omit rows with negative values in columns 1, 2, and 4
 Flow <- Flow[!( Flow[, 3] < 0), ]
 # More data cleaning 
@@ -173,10 +173,10 @@ melt$SampleTaken <- as.POSIXct(melt$SampleTaken, format = "%Y-%m-%d %H:%M:%S", n
 
 Flow <- filter(melt, Measurement == "Flow") # Another adjustment for CG Model. Change to "Flow - CGModel" otherwise just "Flow"
 Flow$Flow <- as.numeric(Flow$Flow, na.rm = TRUE)
+# Remove duplicate timesteps
 Flow <- Flow %>% group_by(SampleTaken, SiteName, Measurement) %>%
   summarise(Flow = mean(Flow))
 Flow <- Flow[,c(1,2,4)]
-#Flow <- na.omit(Flow)
 # Omit rows with negative values in columns 1, 2, and 4
 Flow <- Flow[!( Flow[, 3] < 0), ]
 
@@ -339,6 +339,8 @@ for (i in sitelist) {
   measure1 <- filter(measure_df, SiteName == i)
   merged2 <- filter(merged, Site == i)
   merged3 <- filter(merged1, Site == i)
+  # Disable scientific notation
+  options(scipen = 999)
   
   ###############################
   #Export Flowplot to a PNG file
@@ -356,24 +358,6 @@ for (i in sitelist) {
       plot.margin = unit(c(0.75, 0.75, 0.75, 0.75), "cm"),  # Top, right, bottom, left margins
     )
   print(Flowplot)
-  dev.off()
-  
-  ###############################
-  # Export Sample SSC plot to a PNG file
-  filename <- paste("SSC_", i, ".png", sep="")
-  png(filename, width=1000, height=500)
-  
-  SSC <- ggplot(data = measure1) +
-    geom_line(data = measure1, aes(x = SampleTaken, y = PredConc), colour = '#92a134') +
-    #    scale_x_datetime(date_labels = "%b %Y", date_breaks = "3 months", name = "Date") + # use for normal graphs
-    scale_x_datetime(date_labels = "%d %b %Y", date_breaks = "1 days", name = "Date") + # use for event graphs
-    scale_y_continuous(name = "SSC (mg/l)", labels = comma) +
-    theme(
-      axis.title = element_text(size = 17),    # Axis titles font size
-      axis.text = element_text(size = 15),     # Axis labels font size
-      plot.margin = unit(c(0.75, 0.75, 0.75, 0.75), "cm"),  # Top, right, bottom, left margins
-    )
-  print(SSC)
   dev.off()
   
   ################################
@@ -399,9 +383,13 @@ for (i in sitelist) {
   filename <- paste("SSC2_", i, ".png", sep="")
   png(filename, width=1000, height=500)
   
+  # Create a new dataset with 12-hour offset for the points
+  merged3_offset <- merged3 %>%
+    mutate(SampleTaken = SampleTaken + lubridate::hours(12))
+  
   SSC2 <- ggplot(data = measure1) +
     geom_line(data = measure1, aes(x = SampleTaken, y = PredConc), colour = '#92a134') +
-    geom_point(data = merged3, aes(x = SampleTaken, y = Conc, color = Measurement2),colour = '#eebd1c', size = 2) +
+    geom_point(data = merged3_offset, aes(x = SampleTaken, y = Conc, color = Measurement2),colour = '#eebd1c', size = 2) +
     #    scale_x_datetime(date_labels = "%b %Y", date_breaks = "3 months", name = "Date") + # use for normal graphs
     scale_x_datetime(date_labels = "%d %b %Y", date_breaks = "1 days", name = "Date") + # use for event graphs
     scale_y_continuous(name = "SSC (mg/l)", labels = comma) +
@@ -411,6 +399,38 @@ for (i in sitelist) {
       plot.margin = unit(c(0.75, 0.75, 0.75, 0.75), "cm"),  # Top, right, bottom, left margins
     )
   print(SSC2)
+  dev.off()
+  
+  ################################
+  # Export SSC with point samples plot to a PNG file
+  filename <- paste("SSC3_", i, ".png", sep="")
+  png(filename, width=1000, height=500)
+  
+  # Multiply Flow values by a factor to extend the vertical range
+  flow_scaling_factor <- 2
+  
+  SSC3 <- ggplot(data = measure1) +
+    # Primary axis: geom_path for Flow, scaled to extend the vertical range
+    geom_path(aes(x = SampleTaken, y = (Flow / 1000) * flow_scaling_factor), colour = '#00364a', size = 0.4) + 
+    geom_line(aes(x = SampleTaken, y = PredConc), colour = '#92a134') +
+    geom_point(data = merged3_offset, aes(x = SampleTaken, y = Conc, color = Measurement2),colour = '#eebd1c', size = 2) +
+    scale_x_datetime(date_labels = "%d %b %Y", date_breaks = "1 days", name = "Date") + 
+        # Primary y-axis for SSC and secondary y-axis for Flow with adjusted scaling
+    scale_y_continuous(
+      name = "SSC (mg/l)",  # Primary axis label for SSC
+      labels = scales::comma,  # Comma formatting for SSC values
+      limits = c(0, NA),  # Extend the range to start at 0
+      sec.axis = sec_axis(~ . / flow_scaling_factor, name = "Flow (m³/s)", labels = scales::comma)  # Adjust secondary axis with inverse transformation
+    ) +
+    theme(
+      axis.title = element_text(size = 17),    # Axis titles font size
+      axis.text = element_text(size = 15),     # Axis labels font size
+      plot.margin = unit(c(0.75, 0.75, 0.75, 0.75), "cm"),  # Margins
+      legend.position = "none"  # Remove legend
+    )
+  
+  # Print the plot and save as PNG
+  print(SSC3)
   dev.off()
   
 }
