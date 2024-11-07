@@ -48,8 +48,8 @@ Hilltop::SiteList(dfile)
 
 
 # Date range. 
-date1 <- "01-Jul-2021 00:00:00"
-date2 <- "12-Feb-2023 00:00:00"
+date1 <- "12-Feb-2023 00:00:00"
+date2 <- "19-Feb-2023 00:00:00"
 
 #Measurements/data that we want to pull from the Hilltop file
 # Modify "Flow" to "Flow - CGModel" to pull modelled Gabrielle flows.
@@ -328,9 +328,10 @@ sitelist <- as.character(sitelist)
 print(Statistics_Load)
 
 ##Load table output ******Make sure the dates line up with data inputs
-write.csv(Statistics_Load, file = "Statistics_Load_Feb2023_July2024_WL.csv", row.names = FALSE)
+write.csv(Statistics_Load, file = "Statistics_Load_CycloneGabrielle_Feb2023_WL.csv", row.names = FALSE)
 
 #####  Plot Exports  ###########################################################
+
 
 #Loop 3 through sites-----------------------------------------------------------
 for (i in sitelist) { 
@@ -346,7 +347,8 @@ for (i in sitelist) {
   
   Flowplot <- ggplot(data = measure1) +
     geom_path(aes(x = SampleTaken, y = Flow/1000), colour = '#00364a', size = 0.4) + 
-    scale_x_datetime(date_labels = "%b %Y", date_breaks = "3 months", name = "Date") +
+    #    scale_x_datetime(date_labels = "%b %Y", date_breaks = "3 months", name = "Date") + # use for normal graphs
+    scale_x_datetime(date_labels = "%d %b %Y", date_breaks = "1 days", name = "Date") + # use for event graphs
     scale_y_continuous(name = "Flow (m"^"3"/s~")", labels = comma) +
     theme(
       axis.title = element_text(size = 17),    # Axis titles font size
@@ -363,7 +365,8 @@ for (i in sitelist) {
   
   SSC <- ggplot(data = measure1) +
     geom_line(data = measure1, aes(x = SampleTaken, y = PredConc), colour = '#92a134') +
-    scale_x_datetime(date_labels = "%b %Y", date_breaks = "3 months", name = "Date") +
+    #    scale_x_datetime(date_labels = "%b %Y", date_breaks = "3 months", name = "Date") + # use for normal graphs
+    scale_x_datetime(date_labels = "%d %b %Y", date_breaks = "1 days", name = "Date") + # use for event graphs
     scale_y_continuous(name = "SSC (mg/l)", labels = comma) +
     theme(
       axis.title = element_text(size = 17),    # Axis titles font size
@@ -380,7 +383,8 @@ for (i in sitelist) {
   
   CUMSSC <- ggplot(data = measure1) +
     geom_line(data = measure1, aes(x = SampleTaken, y = AccumLoad), colour = '#f15d49') +
-    scale_x_datetime(date_labels = "%b %Y", date_breaks = "3 months", name = "Date") +
+#    scale_x_datetime(date_labels = "%b %Y", date_breaks = "3 months", name = "Date") + # use for normal graphs
+    scale_x_datetime(date_labels = "%d %b %Y", date_breaks = "1 days", name = "Date") + # use for event graphs
     scale_y_continuous(name = "Cumulative sediment (T)", labels = comma) +
     theme(
       axis.title = element_text(size = 17),    # Axis titles font size
@@ -398,7 +402,8 @@ for (i in sitelist) {
   SSC2 <- ggplot(data = measure1) +
     geom_line(data = measure1, aes(x = SampleTaken, y = PredConc), colour = '#92a134') +
     geom_point(data = merged3, aes(x = SampleTaken, y = Conc, color = Measurement2),colour = '#eebd1c', size = 2) +
-    scale_x_datetime(date_labels = "%b %Y", date_breaks = "3 months", name = "Date") +
+    #    scale_x_datetime(date_labels = "%b %Y", date_breaks = "3 months", name = "Date") + # use for normal graphs
+    scale_x_datetime(date_labels = "%d %b %Y", date_breaks = "1 days", name = "Date") + # use for event graphs
     scale_y_continuous(name = "SSC (mg/l)", labels = comma) +
     theme(
       axis.title = element_text(size = 17),    # Axis titles font size
@@ -444,6 +449,6 @@ head(measure_df2)
 #                   & SiteName != "Mangaone River at Rissington"
 #                   & SiteName != "Wairoa River at Marumaru"
 #                   & SiteName != "Wharerangi Stream at Codds")
-write.csv(measure_df2, file = "I:/306 HCE Project/R_analysis/SedimentLoads/Outputs/measure_df_Feb2023_July2024_WL.csv", row.names = FALSE)
+write.csv(measure_df2, file = "I:/306 HCE Project/R_analysis/SedimentLoads/Outputs/measure_df_July2021_Feb2023_WL.csv", row.names = FALSE)
 
 ################################################################################

@@ -22,15 +22,15 @@ Hilltop::SiteList(dfile)
 
 MyData <- getPuddleData(
   query_option = "",
-  fromDate = "01-07-2021",
-  toDate = "01-07-2024",
+  fromDate = "13-02-2023",
+  toDate = "15-02-2023",
   catchments = "",
   sites = sitelist,
   projects = "340204",
   measurements = "",
-  detids = c("SSMUD", "SSSAND"),
+  detids = c("SSC", "SSMUD", "SSSAND"),
 )
-head(MyData, 10)
+head(MyData, 100)
   
 # Stats for sand #############################################################
   
