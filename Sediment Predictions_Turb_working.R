@@ -668,14 +668,21 @@ measure_df <- bind_rows(Load_list)
 measure_df$SiteName <- as.character(measure_df$SiteName)
 sitelist <- as.character(sitelist)
 
-######## Figure outputs 
+###### Main output table ########
+# Print the resulting table
+print(Statistics_Load)
+
+##Load table output ******Make sure the dates line up with data inputs
+write.csv(Statistics_Load, file = "Statistics_Load_Feb2023_June2024_TURB.csv", row.names = FALSE)
+
+######## Figure outputs ########################################################
 
 #Loop 3 through sites-----------------------------------------------------------
 for (i in sitelist) { 
   
   measure1 <- filter(measure_df, SiteName == i)
   merged2 <- filter(merged, Site == i)
-  merged3 <- filter(merged1, Site == i)
+  merged3 <- filter(merged_wide2, Site == i)
   # Disable scientific notation
   options(scipen = 999)
   
@@ -686,8 +693,8 @@ for (i in sitelist) {
   
   Flowplot <- ggplot(data = measure1) +
     geom_path(aes(x = SampleTaken, y = Flow/1000), colour = '#00364a', size = 0.4) + 
-    #    scale_x_datetime(date_labels = "%b %Y", date_breaks = "3 months", name = "Date") + # use for normal graphs
-    scale_x_datetime(date_labels = "%d %b %Y", date_breaks = "1 days", name = "Date") + # use for event graphs
+    scale_x_datetime(date_labels = "%b %Y", date_breaks = "3 months", name = "Date") + # use for normal graphs
+    #scale_x_datetime(date_labels = "%d %b %Y", date_breaks = "1 days", name = "Date") + # use for event graphs
     scale_y_continuous(name = "Flow (m"^"3"/s~")", labels = comma) +
     theme(
       axis.title = element_text(size = 17),    # Axis titles font size
@@ -704,8 +711,8 @@ for (i in sitelist) {
   
   CUMSSC <- ggplot(data = measure1) +
     geom_line(data = measure1, aes(x = SampleTaken, y = AccumLoad), colour = '#f15d49') +
-    #    scale_x_datetime(date_labels = "%b %Y", date_breaks = "3 months", name = "Date") + # use for normal graphs
-    scale_x_datetime(date_labels = "%d %b %Y", date_breaks = "1 days", name = "Date") + # use for event graphs
+    scale_x_datetime(date_labels = "%b %Y", date_breaks = "3 months", name = "Date") + # use for normal graphs
+    #scale_x_datetime(date_labels = "%d %b %Y", date_breaks = "1 days", name = "Date") + # use for event graphs
     scale_y_continuous(name = "Cumulative sediment (T)", labels = comma) +
     theme(
       axis.title = element_text(size = 17),    # Axis titles font size
@@ -726,9 +733,9 @@ for (i in sitelist) {
   
   SSC2 <- ggplot(data = measure1) +
     geom_line(data = measure1, aes(x = SampleTaken, y = PredConc), colour = '#92a134') +
-    geom_point(data = merged3_offset, aes(x = SampleTaken, y = Conc, color = Measurement2),colour = '#eebd1c', size = 2) +
-    #    scale_x_datetime(date_labels = "%b %Y", date_breaks = "3 months", name = "Date") + # use for normal graphs
-    scale_x_datetime(date_labels = "%d %b %Y", date_breaks = "1 days", name = "Date") + # use for event graphs
+    geom_point(data = merged3_offset, aes(x = SampleTaken, y = SSC, color = Measurement2),colour = '#eebd1c', size = 2) +
+    scale_x_datetime(date_labels = "%b %Y", date_breaks = "3 months", name = "Date") + # use for normal graphs
+    #scale_x_datetime(date_labels = "%d %b %Y", date_breaks = "1 days", name = "Date") + # use for event graphs
     scale_y_continuous(name = "SSC (mg/l)", labels = comma) +
     theme(
       axis.title = element_text(size = 17),    # Axis titles font size
@@ -750,8 +757,8 @@ for (i in sitelist) {
     # Primary axis: geom_path for Flow, scaled to extend the vertical range
     geom_path(aes(x = SampleTaken, y = (Flow / 1000) * flow_scaling_factor), colour = '#00364a', size = 0.4) + 
     geom_line(aes(x = SampleTaken, y = PredConc), colour = '#92a134') +
-    geom_point(data = merged3_offset, aes(x = SampleTaken, y = Conc, color = Measurement2),colour = '#eebd1c', size = 2) +
-    scale_x_datetime(date_labels = "%d %b %Y", date_breaks = "1 days", name = "Date") + 
+    geom_point(data = merged3_offset, aes(x = SampleTaken, y = SSC, color = Measurement2),colour = '#eebd1c', size = 2) +
+    scale_x_datetime(date_labels = "%b %Y", date_breaks = "3 months", name = "Date") + 
     # Primary y-axis for SSC and secondary y-axis for Flow with adjusted scaling
     scale_y_continuous(
       name = "SSC (mg/l)",  # Primary axis label for SSC
@@ -772,13 +779,6 @@ for (i in sitelist) {
   
 }
 #Loop 3 completed---------------------------------------------------------------
-
-###### More Outputs  ###########################################################
-
-# Print the resulting table
-print(Statistics_Load)
-##Load table output ******Make sure the dates line up with data inputs
-write.csv(Statistics_Load, file = "Statistics_Load__Feb2023_July2024_TURB.csv", row.names = FALSE)
 
 ############## Clean up measure_df for export 
 
