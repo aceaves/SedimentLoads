@@ -27,9 +27,10 @@ library(xml2)
 markers_data <- read.csv("markers.csv")
 # Read shapefile of catchment areas
 catchment_polygons <- st_read("ISCO_HBRC_REC2_Catchment_Area_2023_Selection.shp")
+catchment_polygons <- st_transform(catchment_polygons, crs = 4326)  # Transform to WGS84 (EPSG:4326)
 
 # Load sediment concentration data
-df <- read_csv("https://media.githubusercontent.com/media/aceaves/SedimentRatingCurves/main/app/measure.csv")
+df <- read_csv("https://media.githubusercontent.com/media/aceaves/SedimentLoads/main/app/measure.csv")
 df$SampleTaken <- as.POSIXct(df$SampleTaken, format = "%d/%m/%Y %H:%M")
 sitelist <- unique(df$SiteName)
 
@@ -84,7 +85,7 @@ ui <- fluidPage(
    HTML("<p>© 2024 Hawke's Bay Regional Council. All rights reserved.</p>")
  ),
   
- titlePanel(div("HBRC - Sediment Concentration Plots, Flow & Load Summary", style = "color: #8B6508")),
+ titlePanel(HTML('<div style="color: #8B6508">HBRC - Sediment Concentration Plots, Flow & Load Summary</div>')),
   
  sidebarLayout(
    sidebarPanel(
@@ -185,10 +186,10 @@ server <- function(input, output, session) {
 
 ##### Turn on ONE of the options below:
 #For localhost:
-shinyApp(ui, server)
+#shinyApp(ui, server)
 
-#For port forwarding:
-#shinyApp(ui, server, options = list(port = 3093, host = "192.168.5.108"))
+#For port forwarding (host is always changing):
+shinyApp(ui, server, options = list(port = 3093, host = "192.168.5.148"))
 
 
 #runApp("app",host="0.0.0.0",port=3000)
