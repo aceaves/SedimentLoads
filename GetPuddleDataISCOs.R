@@ -14,7 +14,7 @@ sitelist <- SiteList(dfile, "")
 Hilltop::SiteList(dfile)
 
 # Subset the list for analysis after Cyclone Gabby as many sites have no data after.
-#sitelist <- sitelist[sitelist == "Wairoa River at Marumaru" ]
+sitelist <- sitelist[sitelist == "Karamu Stream at Floodgates" ]
 #sitelist <- sitelist[sitelist == "Waimaunu Stream at Duncans" | 
 #                       sitelist == "Waikatuku Strm off Harrison Rd"]
 
@@ -22,8 +22,8 @@ Hilltop::SiteList(dfile)
 
 MyData <- getPuddleData(
   query_option = "",
-  fromDate = "13-02-2023",
-  toDate = "15-02-2023",
+  fromDate = "30-01-2023",
+  toDate = "01-02-2023",
   catchments = "",
   sites = sitelist,
   projects = "340204",

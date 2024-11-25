@@ -258,13 +258,6 @@ merged_wide2$SSC <- as.numeric(merged_wide2$SSC)
 merged_wide2 <- merged_wide2 %>%
   filter(!is.na(FNU_Min) & !is.na(SSC))
 
-# Remove outliers: Keep values within the threshold
-outlier_threshold <- 3 * sd(merged_wide2$FNU_Min)
-
-# Filter to keep values within 3 standard deviations from the mean
-merged_wide2 <- merged_wide2 %>% 
-  filter(abs(FNU_Min - mean(FNU_Min)) <= outlier_threshold)
-
 #####  Write out merged_wide2 for external use ######################
 #write.csv(merged_wide2, file = "I:/306 HCE Project/R_analysis/SedimentLoads/Outputs/merged_wide2.csv", row.names = FALSE)
 
@@ -319,12 +312,74 @@ fit_models <- function(df) {
   return(list(best_model = best_model, aic = aic_values[best_model], 
               r_squared = r_squared, equation = equation))
 }
-
+#------------------------------------------------------------------------------
 # Apply the function to each site
 results <- merged_wide2 %>%
   group_by(Site) %>%
   summarise(best_model_info = list(fit_models(cur_data()))) %>%
   unnest_wider(best_model_info)
+
+# Define a function to remove outliers based on residuals
+remove_outliers <- function(model, data) {
+  # Predict the values
+  predicted_values <- predict(model, data)
+  
+  # Calculate residuals
+  residuals <- data$SSC - predicted_values
+  
+  # Calculate the standard deviation of the residuals
+  residual_sd <- sd(residuals, na.rm = TRUE)
+  
+  # Define the outlier threshold (2 standard deviations)
+  threshold <- 2 * residual_sd
+  
+  # Remove rows with residuals greater than the threshold
+  data_filtered <- data[abs(residuals) <= threshold, ]
+  
+  return(data_filtered)
+}
+
+# For Tukituki River at Red Bridge
+tukituki_data <- merged_wide2 %>% filter(Site == "Tukituki River at Red Bridge")
+linear_model_tukituki <- lm(SSC ~ FNU_Min, data = tukituki_data)
+
+# Remove outliers from Tukituki data
+tukituki_data_filtered <- remove_outliers(linear_model_tukituki, tukituki_data)
+
+# Refit the linear model after removing outliers
+linear_model_tukituki_filtered <- lm(SSC ~ FNU_Min, data = tukituki_data_filtered)
+
+# Calculate AIC, equation, and R-squared for Tukituki
+linear_model_aic <- AIC(linear_model_tukituki_filtered)
+linear_model_equation <- paste("SSC =", round(coef(linear_model_tukituki_filtered)[1], 4), "+", 
+                               round(coef(linear_model_tukituki_filtered)[2], 4), "* FNU_Min")
+r_squared_manual <- summary(linear_model_tukituki_filtered)$r.squared
+
+# Print the results for Tukituki
+print(paste("Equation Tukituki:", linear_model_equation))
+print(paste("R-squared Tukituki:", round(r_squared_manual, 3)))
+
+# For Karamu Stream at Floodgates
+karamu_data <- merged_wide2 %>% filter(Site == "Karamu Stream at Floodgates")
+polynomial_model <- lm(SSC ~ FNU_Min + I(FNU_Min^2), data = karamu_data)
+
+# Remove outliers from Karamu data
+karamu_data_filtered <- remove_outliers(polynomial_model, karamu_data)
+
+# Refit the polynomial model after removing outliers
+polynomial_model_filtered <- lm(SSC ~ FNU_Min + I(FNU_Min^2), data = karamu_data_filtered)
+
+# Extract coefficients and R-squared for Karamu
+coeffs <- coef(polynomial_model_filtered)
+equation <- paste("SSC =", round(coeffs[1], 4), "+", 
+                  round(coeffs[2], 4), "* FNU_Min +", 
+                  round(coeffs[3], 4), "* FNU_Min^2")
+r_squared_karamu <- summary(polynomial_model_filtered)$r.squared
+
+# Print the results for Karamu
+print(paste("Equation Karamu:", equation))
+print(paste("R-squared Karamu:", round(r_squared_karamu, 3)))
+
 
 # For Tukituki River at Red Bridge, ensure linear model results are used if needed
 tukituki_data <- merged_wide2 %>% filter(Site == "Tukituki River at Red Bridge")

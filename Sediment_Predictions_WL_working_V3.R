@@ -45,6 +45,8 @@ Hilltop::SiteList(dfile)
 #sitelist <- sitelist[sitelist == "Wairoa River at Marumaru" | 
 #                      sitelist == "Tutaekuri River at Puketapu HBRC Site"]
 
+# Subset the list for analysis during Cyclone Gabby with Todd's modelled data:
+sitelist <- sitelist[sitelist == "Wairoa River at Marumaru"]
 
 # Date range. 
 date1 <- "01-Jul-2021 00:00:00"
@@ -327,7 +329,7 @@ sitelist <- as.character(sitelist)
 print(Statistics_Load)
 
 ##Load table output ******Make sure the dates line up with data inputs
-write.csv(Statistics_Load, file = "Statistics_Load_Feb2023_June2024_WL.csv", row.names = FALSE)
+write.csv(Statistics_Load, file = "Statistics_Load_July2021_Feb203_WL.csv", row.names = FALSE)
 
 #####  Plot Exports  ###########################################################
 
@@ -468,6 +470,6 @@ head(measure_df2)
 #                   & SiteName != "Mangaone River at Rissington"
 #                   & SiteName != "Wairoa River at Marumaru"
 #                   & SiteName != "Wharerangi Stream at Codds")
-write.csv(measure_df2, file = "I:/306 HCE Project/R_analysis/SedimentLoads/Outputs/measure_df_Feb2023_June2024_WL.csv", row.names = FALSE)
+write.csv(measure_df2, file = "I:/306 HCE Project/R_analysis/SedimentLoads/Outputs/measure_df_July2021_Feb2023_WL.csv", row.names = FALSE)
 
 ################################################################################
