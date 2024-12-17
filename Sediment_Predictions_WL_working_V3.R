@@ -214,7 +214,7 @@ for (i in sitelist) {
     
     # Process according to regression type
     if (regression_type == "Exponential") {
-      Flow1$PredConc <-  exp(lookup_result$Exp_X * Flow1$Flow) * lookup_result$Exp_Power # Calibrated to match rating for Aropaoanui divide flow by 2000 like this: Flow1$Flow/2000
+      Flow1$PredConc <-  exp(lookup_result$Exp_X * Flow1$Flow) * lookup_result$Exp_Power
     } else if (regression_type == "Polynomial") {
       Flow1$PredConc <- lookup_result$X_Squared * Flow1$Flow^2 + lookup_result$Poly_X * Flow1$Flow + lookup_result$Poly_Intercept
     } else if (regression_type == "Log") {
