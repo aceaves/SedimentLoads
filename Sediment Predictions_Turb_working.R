@@ -155,7 +155,7 @@ melt <- bind_rows(melt, turbidity_fnu)
 melt$SampleTaken <-  lubridate::floor_date(melt$SampleTaken, "15 minutes")
 melt$SampleTaken <- as.POSIXct(melt$SampleTaken, format = "%Y-%m-%d %H:%M:%S", na.rm = TRUE)
 
-Flow <- filter(melt, Measurement == "Flow") # Another adjustment for CG Model. Change to "Flow - CGModel" otherwise just "Flow"
+Flow <- filter(melt, Measurement == "Flow") 
 Flow$Flow <- as.numeric(Flow$Flow, na.rm = TRUE)
 # Remove duplicate timesteps
 Flow <- Flow %>% group_by(SampleTaken, SiteName, Measurement) %>%
@@ -359,6 +359,8 @@ r_squared_manual <- summary(linear_model_tukituki_filtered)$r.squared
 print(paste("Equation Tukituki:", linear_model_equation))
 print(paste("R-squared Tukituki:", round(r_squared_manual, 3)))
 
+#----------------------------
+
 # For Karamu Stream at Floodgates
 karamu_data <- merged_wide2 %>% filter(Site == "Karamu Stream at Floodgates")
 polynomial_model <- lm(SSC ~ FNU_Min + I(FNU_Min^2), data = karamu_data)
@@ -380,69 +382,15 @@ r_squared_karamu <- summary(polynomial_model_filtered)$r.squared
 print(paste("Equation Karamu:", equation))
 print(paste("R-squared Karamu:", round(r_squared_karamu, 3)))
 
-
-# For Tukituki River at Red Bridge, ensure linear model results are used if needed
-tukituki_data <- merged_wide2 %>% filter(Site == "Tukituki River at Red Bridge")
-linear_model_tukituki <- lm(SSC ~ FNU_Min, data = tukituki_data)
-
-# Prepare linear model results for Tukituki
-linear_model_aic <- AIC(linear_model_tukituki)
-linear_model_equation <- paste("SSC =", round(coef(linear_model_tukituki)[1], 4), "+", 
-                               round(coef(linear_model_tukituki)[2], 4), "* FNU_Min")
-
-# Update results for Tukituki if R-squared is NA
-results <- results %>%
-  mutate(best_model = ifelse(is.na(r_squared) & Site == "Tukituki River at Red Bridge", 
-                             "linear", best_model),
-         aic = ifelse(is.na(r_squared) & Site == "Tukituki River at Red Bridge", 
-                      linear_model_aic, aic),
-         equation = ifelse(is.na(r_squared) & Site == "Tukituki River at Red Bridge", 
-                           linear_model_equation, equation),
-         r_squared = ifelse(is.na(r_squared) & Site == "Tukituki River at Red Bridge", 
-                            1, r_squared))
-
-# View results
-print(results)
-
-# Calculate manual override regression equation for Karamu
-karamu_data <- merged_wide2 %>% filter(Site == "Karamu Stream at Floodgates")
-# Fit a polynomial regression model explicitly
-polynomial_model <- lm(SSC ~ FNU_Min + I(FNU_Min^2), data = karamu_data)
-
-# Extract coefficients
-coeffs <- coef(polynomial_model)
-
-# Equation formatting
-equation <- paste("SSC =", round(coeffs[1], 4), "+", 
-                  round(coeffs[2], 4), "* FNU_Min +", 
-                  round(coeffs[3], 4), "* FNU_Min^2")
-
-# Get R-squared value
-r_squared <- summary(polynomial_model)$r.squared
-
-# Print results
-print(paste("Equation:", equation))
-print(paste("R-squared Karamu:", round(r_squared, 3)))
-
-
-# Calculate manual override R-squared for Tukituki River at Red Bridge
-predicted_values <- predict(linear_model_tukituki)
-ss_total <- sum((tukituki_data$SSC - mean(tukituki_data$SSC))^2)
-ss_residual <- sum((tukituki_data$SSC - predicted_values)^2)
-r_squared_manual <- 1 - (ss_residual / ss_total)
-
-# Print manual R-squared value
-print(paste("R-squared Tukituki:", round(r_squared_manual, 3)))
-
 ######## Graph SSC vs turbidity ################################################
 
 # Basic plots
-ggplot(merged_wide2 %>% filter(Site == "Tukituki River at Red Bridge"), aes(x = FNU_Min, y = SSC)) +
+ggplot(tukituki_data_filtered %>% filter(Site == "Tukituki River at Red Bridge"), aes(x = FNU_Min, y = SSC)) +
   geom_point() +
   geom_smooth(method = "lm", se = FALSE) +
   ggtitle("SSC vs. FNU_Min for Tukituki River at Red Bridge")
 
-ggplot(merged_wide2 %>% filter(Site == "Karamu Stream at Floodgates"), aes(x = FNU_Min, y = SSC)) +
+ggplot(karamu_data_filtered %>% filter(Site == "Karamu Stream at Floodgates"), aes(x = FNU_Min, y = SSC)) +
   geom_point() +
   geom_smooth(method = "lm", formula = y ~ poly(x, 2), se = FALSE) +  # Polynomial regression (degree 2)
   ggtitle("SSC vs. FNU_Min for Karamu Stream at Floodgates (Polynomial Fit)") +
@@ -452,13 +400,14 @@ ggplot(merged_wide2 %>% filter(Site == "Karamu Stream at Floodgates"), aes(x = F
 ####### Tuki
 
 # Filter the dataset for "Tukituki River at Red Bridge"
-tuki_data <- merged_wide2 %>% filter(Site == "Tukituki River at Red Bridge")
+tuki_data <- tukituki_data_filtered %>% filter(Site == "Tukituki River at Red Bridge")
 
 # Fit the regression model for SSC ~ FNU_Min
 lm_model <- lm(SSC ~ FNU_Min, data = tuki_data)
+linear_model_tukituki_filtered <- lm(SSC ~ FNU_Min, data = tukituki_data_filtered)
 
 # Get R-squared value from the model summary
-r_squared <- summary(lm_model)$r.squared
+r_squared <- summary(linear_model_tukituki_filtered)$r.squared
 
 # Create the plot with further adjustments
 p <- ggplot(data = tuki_data, aes(x = FNU_Min, y = SSC)) +
@@ -492,14 +441,14 @@ ggplotly(p)
 ########## Karamu 
 
 # Filter the dataset for "Karamu Stream at Floodgates"
-karamu_data <- merged_wide2 %>% filter(Site == "Karamu Stream at Floodgates")
+karamu_data <- karamu_data_filtered %>% filter(Site == "Karamu Stream at Floodgates")
 
 # Fit a polynomial regression model explicitly
-polynomial_model <- lm(SSC ~ FNU_Min + I(FNU_Min^2), data = karamu_data)
+polynomial_model_filtered <- lm(SSC ~ FNU_Min + I(FNU_Min^2), data = karamu_data_filtered)
 
 # Get coefficients and R-squared value
-coeffs <- coef(polynomial_model)
-r_squared <- summary(polynomial_model)$r.squared
+coeffs <- coef(polynomial_model_filtered)
+r_squared <- summary(polynomial_model_filtered)$r.squared
 
 # Create the plot with further adjustments
 p <- ggplot(data = karamu_data, aes(x = FNU_Min, y = SSC)) +
@@ -550,7 +499,7 @@ print(regression)
 melt$SampleTaken <-  lubridate::floor_date(melt$SampleTaken, "15 minutes")
 melt$SampleTaken <- as.POSIXct(melt$SampleTaken, format = "%Y-%m-%d %H:%M:%S", na.rm = TRUE)
 
-Flow <- filter(melt, Measurement == "Flow") # Another adjustment for CG Model. Change to "Flow - CGModel" otherwise just "Flow"
+Flow <- filter(melt, Measurement == "Flow")
 Flow$Flow <- as.numeric(Flow$Flow, na.rm = TRUE)
 # Remove duplicate timesteps
 Flow <- Flow %>% group_by(SampleTaken, SiteName, Measurement) %>%
@@ -650,7 +599,7 @@ for (i in sitelist) {
     # Initialize AccumLoad and calculate it
     Flow1$AccumLoad <- numeric(nrow(Flow1))
     if (length(Flow1$Load) > 0) {
-      Flow1$AccumLoad <- Reduce("+", Flow1$Load * Flow1$DiffSecs, accumulate = TRUE)
+      Flow1$AccumLoad <- cumsum(Flow1$Load * Flow1$DiffSecs)  # Cumulative sum over load and time
     }
     
     # Get summary statistics for the current iteration for load
@@ -736,7 +685,7 @@ write.csv(Statistics_Load, file = "Statistics_Load_Feb2023_June2024_TURB.csv", r
 for (i in sitelist) { 
   
   measure1 <- filter(measure_df, SiteName == i)
-  merged2 <- filter(merged, Site == i)
+  merged2 <- filter(merged_wide_sub, SiteName == i)
   merged3 <- filter(merged_wide2, Site == i)
   # Disable scientific notation
   options(scipen = 999)
