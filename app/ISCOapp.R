@@ -60,17 +60,22 @@ ui <- fluidPage(
   
   tags$head(
     tags$style(HTML("
-      /* Custom CSS styles */
-      .footer {
-        text-align: center;
-        margin-top: 20px;
-        color: #777;
-      }
+    /* Custom CSS styles */
+    .footer {
+      text-align: center;
+      margin-top: 20px;
+      color: #777;
+    }
 
-      .logo img {
-        max-width: 100px; /* Adjust the maximum width as needed */
-      }
-    "))
+    .logo img {
+      max-width: 100px; /* Adjust the maximum width as needed */
+    }
+
+    /* Change the background color of the whole page */
+    body {
+      background-color: #B0C4DE; /* Lightsteelblue1 color */
+    }
+  "))
   ),
   
   fluidRow(
@@ -80,16 +85,10 @@ ui <- fluidPage(
   # Footer with logo and copyright
   tags$div(
     style = "text-align: center; color: #777; position: fixed; bottom: 0; left: 0; width: 100%;",
-    tags$div(
-      class = "logo",
-      img(src = "https://raw.githubusercontent.com/aceaves/SedimentRatingCurves/main/app/HBRC-RGB.jpg", 
-          alt = "Company Logo", 
-          style = "max-width: 175px;")
-    ),
     HTML("<p>© 2025 Hawke's Bay Regional Council. All rights reserved.</p>")
   ),
   
-  titlePanel(HTML('<div style="color: #8B6508">HBRC ISCO Programme - Suspended Sediment Concentration, Flow & Load Plots</div>')),
+  titlePanel(HTML('<div style="color: #6B4504">HBRC ISCO Programme - Suspended Sediment Concentration, Flow & Load Plots</div>')),
   
   
   
@@ -104,17 +103,27 @@ ui <- fluidPage(
       dateRangeInput("dater", "Date range:", 
                      start = df$SampleTaken[1], 
                      end = df$SampleTaken[nrow(df)]),
-      width = 3  # Adjust sidebar width (try 2 or 3)
-    ), 
+      width = 3,  # Adjust sidebar width (try 2 or 3)
+      
+      # ✅ Logo inside sidebarPanel(), properly positioned below inputs
+      tags$div(
+        style = "text-align: center; margin-top: 10px;",
+        img(
+          src = "https://raw.githubusercontent.com/aceaves/SedimentRatingCurves/main/app/HBRC-RGB.jpg",
+          alt = "Company Logo",
+          style = "max-width: 300px;"
+        )
+      )
+    ),  # ✅ This correctly closes sidebarPanel()
     
     mainPanel(
       verbatimTextOutput("caption"),
       plotlyOutput("Plot"),
       leafletOutput("map")
     )
-  )
+  ),
 )
-
+  
 
 # Define server logic
 server <- function(input, output, session) {
