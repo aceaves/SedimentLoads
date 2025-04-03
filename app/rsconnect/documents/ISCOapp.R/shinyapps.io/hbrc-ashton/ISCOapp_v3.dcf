@@ -5,7 +5,7 @@ account: hbrc-ashton
 server: shinyapps.io
 hostUrl: https://api.shinyapps.io/v1
 appId: 13292587
-bundleId: 9342608
+bundleId: 10047231
 url: https://hbrc-ashton.shinyapps.io/ISCOapp_v3/
 version: 1
 asMultiple: FALSE

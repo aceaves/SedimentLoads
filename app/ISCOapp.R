@@ -72,31 +72,41 @@ ui <- fluidPage(
       }
     "))
   ),
+  
   fluidRow(
- #   column(12, align = "center", "Shiny App developed by Land Science for the ISCO Programme"),
-      ),
- # Footer with logo and copyright
- tags$div(
-   style = "text-align: center; color: #777; position: fixed; bottom: 0; left: 0; width: 100%;",
-   tags$div(
-     class = "logo",
-     img(src = "https://raw.githubusercontent.com/aceaves/SedimentRatingCurves/main/app/HBRC-RGB.jpg", alt = "Company Logo", style = "max-width: 175px;")
-   ),
-   HTML("<p>© 2024 Hawke's Bay Regional Council. All rights reserved.</p>")
- ),
+    column(12, align = "center", "Shiny App developed by Land Science")
+  ),
   
- titlePanel(HTML('<div style="color: #8B6508">HBRC - Sediment Concentration Plots, Flow & Load Summary</div>')),
+  # Footer with logo and copyright
+  tags$div(
+    style = "text-align: center; color: #777; position: fixed; bottom: 0; left: 0; width: 100%;",
+    tags$div(
+      class = "logo",
+      img(src = "https://raw.githubusercontent.com/aceaves/SedimentRatingCurves/main/app/HBRC-RGB.jpg", 
+          alt = "Company Logo", 
+          style = "max-width: 175px;")
+    ),
+    HTML("<p>© 2025 Hawke's Bay Regional Council. All rights reserved.</p>")
+  ),
   
- sidebarLayout(
-   sidebarPanel(
-     selectInput("SiteName", "Site Name:", c(sitelist)),
-     selectInput("df", "Measurement:",
-                 c("Flow (m³/s)" = "Flow",
-                   "Predicted Concentration SSC (mg/l)" = "PredConc",
-                   "Sediment Load (T/s)" = "Load",
-                   "Accumulated Load (T)" = "AccumLoad")),
-     dateRangeInput("dater","Date range:",start=df$SampleTaken[1],end=df$SampleTaken[nrow(df)]),
-   ),
+  titlePanel(HTML('<div style="color: #8B6508">HBRC ISCO Programme - Suspended Sediment Concentration, Flow & Load Plots</div>')),
+  
+  
+  
+  sidebarLayout(
+    sidebarPanel(
+      selectInput("SiteName", "Site Name:", c(sitelist)),
+      selectInput("df", "Measurement:",
+                  c("Flow (m³/s)" = "Flow",
+                    "Predicted Concentration SSC (mg/l)" = "PredConc",
+                    "Sediment Load (t/s)" = "Load",
+                    "Accumulated Load (t)" = "AccumLoad")),
+      dateRangeInput("dater", "Date range:", 
+                     start = df$SampleTaken[1], 
+                     end = df$SampleTaken[nrow(df)]),
+      width = 3  # Adjust sidebar width (try 2 or 3)
+    ), 
+    
     mainPanel(
       verbatimTextOutput("caption"),
       plotlyOutput("Plot"),
@@ -104,6 +114,7 @@ ui <- fluidPage(
     )
   )
 )
+
 
 # Define server logic
 server <- function(input, output, session) {
@@ -144,7 +155,7 @@ server <- function(input, output, session) {
         addProviderTiles("Esri.WorldImagery") %>%  # Satellite imagery
         addProviderTiles("Esri.WorldStreetMap", group = "Labels") %>%  # Street labels
         addMarkers(data = markers_data, lat = ~lat, lng = ~lon, popup = ~popup) %>%
-        addPolygons(data = catchment_polygons, fillColor = "orange", fillOpacity = 0.5, popup = ~SiteName) %>%
+        addPolygons(data = catchment_polygons, fillColor = "orange", fillOpacity = 0.4, popup = ~SiteName) %>%
         fitBounds(all_markers_bounds$lng1, all_markers_bounds$lat1, all_markers_bounds$lng2, all_markers_bounds$lat2) %>%
         addLayersControl(baseGroups = c("Esri.WorldImagery", "Labels"))
     } else {
@@ -154,7 +165,7 @@ server <- function(input, output, session) {
         addProviderTiles("Esri.WorldImagery") %>%  # Satellite imagery
         addProviderTiles("Esri.WorldStreetMap", group = "Labels") %>%  # Street labels
         addMarkers(data = markers_data, lat = ~lat, lng = ~lon, popup = ~popup) %>%
-        addPolygons(data = catchment_polygons, fillColor = "orange", fillOpacity = 0.5, popup = ~SiteName) %>%
+        addPolygons(data = catchment_polygons, fillColor = "orange", fillOpacity = 0.4, popup = ~SiteName) %>%
         addLayersControl(baseGroups = c("Esri.WorldImagery", "Labels"))
     }
   })
@@ -186,10 +197,10 @@ server <- function(input, output, session) {
 
 ##### Turn on ONE of the options below:
 #For localhost:
-#shinyApp(ui, server)
+shinyApp(ui, server)
 
 #For port forwarding (host is always changing):
-shinyApp(ui, server, options = list(port = 3093, host = "192.168.5.148"))
+#shinyApp(ui, server, options = list(port = 3093, host = "192.168.5.148"))
 
 
 #runApp("app",host="0.0.0.0",port=3000)

@@ -36,8 +36,9 @@ sitelist <- SiteList(dfile, "")
 Hilltop::SiteList(dfile)
 
 # Subset the list for analysis after Cyclone Gabby as many sites have no data after.
-#sitelist <- sitelist[sitelist == "Waimaunu Stream at Duncans" | 
+#sitelist <- sitelist[sitelist == "Waimaunu Stream at Duncans"] # | 
 #                      sitelist == "Waikatuku Strm off Harrison Rd"]
+#sitelist <- sitelist[sitelist == "Ngaruroro River at Fernhill"] 
 #sitelist <- sitelist[sitelist == "Karamu Stream at Floodgates" | 
 #                       sitelist == "Tukituki River at Red Bridge"]
 
@@ -46,11 +47,11 @@ Hilltop::SiteList(dfile)
 #                      sitelist == "Tutaekuri River at Puketapu HBRC Site"]
 
 # Subset the list for analysis during Cyclone Gabby with Todd's modelled data:
-sitelist <- sitelist[sitelist == "Wairoa River at Marumaru"]
+#sitelist <- sitelist[sitelist == "Wairoa River at Marumaru"]
 
 # Date range. 
-date1 <- "12-Feb-2023 00:00:00"
-date2 <- "19-Feb-2023 00:00:00"
+date1 <- "01-Jul-2021 00:00:00"
+date2 <- "12-Feb-2023 00:00:00"
 
 #Measurements/data that we want to pull from the Hilltop file
 # Modify "Flow" to "Flow - CGModel" to pull modelled Gabrielle flows.
@@ -172,7 +173,7 @@ merged1 <- filter(merged, Measurement2 == 'SSC')
 melt$SampleTaken <-  lubridate::floor_date(melt$SampleTaken, "15 minutes")
 melt$SampleTaken <- as.POSIXct(melt$SampleTaken, format = "%Y-%m-%d %H:%M:%S", na.rm = TRUE)
 
-Flow <- filter(melt, Measurement == "Flow - CGModel") # Another adjustment for CG Model. Change to "Flow - CGModel" otherwise just "Flow"
+Flow <- filter(melt, Measurement == "Flow") # Another adjustment for CG Model. Change to "Flow - CGModel" otherwise just "Flow"
 Flow$Flow <- as.numeric(Flow$Flow, na.rm = TRUE)
 # Remove duplicate timesteps
 Flow <- Flow %>% group_by(SampleTaken, SiteName, Measurement) %>%
