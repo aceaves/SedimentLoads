@@ -29,7 +29,7 @@ Sys.setlocale("LC_TIME", "C")
 #Set file path to ISCO Hilltop file 
 dfile <- HilltopData("I:/306 HCE Project/Hilltop/ISCO_Processing.dsn")
 #dfile <- HilltopData("N:/HilltopData/EMAR/EMARFull.dsn")
-#dfile <- HilltopData("I:/320_Surface Water Hydrology/Hilltop_Workfiles/HilltopStitchedModelData/GabrielleModelled_Ashton.hts")
+dfile <- HilltopData("I:/320_Surface Water Hydrology/SOE/2021-2024_Report/Tech_Report/Hilltop_Workfiles/HilltopStitchedModelData/GabrielleModelled_Ashton.hts")
 
 # Get site list or measurement list for respective sites 
 sitelist <- SiteList(dfile, "")
@@ -47,15 +47,15 @@ Hilltop::SiteList(dfile)
 #                      sitelist == "Tutaekuri River at Puketapu HBRC Site"]
 
 # Subset the list for analysis during Cyclone Gabby with Todd's modelled data:
-#sitelist <- sitelist[sitelist == "Wairoa River at Marumaru"]
+sitelist <- sitelist[sitelist == "Tutaekuri River at Puketapu HBRC Site"]
 
 # Date range. 
-date1 <- "01-Jul-2021 00:00:00"
-date2 <- "12-Feb-2023 00:00:00"
+date1 <- "12-Feb-2023 00:00:00"
+date2 <- "19-Feb-2023 00:00:00"
 
 #Measurements/data that we want to pull from the Hilltop file
 # Modify "Flow" to "Flow - CGModel" to pull modelled Gabrielle flows.
-measurement <- c(	'Suspended Solids [Suspended Solids]','Suspended Sediment Concentration', "Flow") # Adjust for CG Model. Change to "Flow - CGModel" otherwise just "Flow".
+measurement <- c(	'Suspended Solids [Suspended Solids]','Suspended Sediment Concentration', "Flow - CGModel") # Adjust for CG Model. Change to "Flow - CGModel" otherwise just "Flow".
 
 # Read regression file into a data frame
 regression_output <- "I:/306 HCE Project/R_analysis/SedimentLoads/Outputs/Regressions/regression_output_excel.xlsx"
@@ -125,7 +125,7 @@ melt$SampleTaken <-  lubridate::floor_date(melt$SampleTaken, "15 minutes")
 melt$SampleTaken <- as.POSIXct(melt$SampleTaken, format = "%Y-%m-%d %H:%M:%S", na.rm = TRUE)
 
 
-Flow <- filter(melt, Measurement == "Flow") # Another adjustment for CG Model. Change to "Flow - CGModel" otherwise just "Flow"
+Flow <- filter(melt, Measurement == "Flow - CGModel") # Another adjustment for CG Model. Change to "Flow - CGModel" otherwise just "Flow"
 Flow$Flow <- as.numeric(Flow$Flow, na.rm = TRUE)
 # Remove duplicate timesteps
 Flow <- Flow %>% group_by(SampleTaken, SiteName, Measurement) %>%
@@ -173,7 +173,7 @@ merged1 <- filter(merged, Measurement2 == 'SSC')
 melt$SampleTaken <-  lubridate::floor_date(melt$SampleTaken, "15 minutes")
 melt$SampleTaken <- as.POSIXct(melt$SampleTaken, format = "%Y-%m-%d %H:%M:%S", na.rm = TRUE)
 
-Flow <- filter(melt, Measurement == "Flow") # Another adjustment for CG Model. Change to "Flow - CGModel" otherwise just "Flow"
+Flow <- filter(melt, Measurement == "Flow - CGModel") # Another adjustment for CG Model. Change to "Flow - CGModel" otherwise just "Flow"
 Flow$Flow <- as.numeric(Flow$Flow, na.rm = TRUE)
 # Remove duplicate timesteps
 Flow <- Flow %>% group_by(SampleTaken, SiteName, Measurement) %>%

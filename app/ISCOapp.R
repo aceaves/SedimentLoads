@@ -58,6 +58,8 @@ ggplot_code <- function(df2, input_df) {
 # Define UI for the app
 ui <- fluidPage(
   
+  title = "HBRC ISCO Programme – SSC, Flow & Load Plots",  # browser tab title
+  
   tags$head(
     tags$style(HTML("
     /* Custom CSS styles */

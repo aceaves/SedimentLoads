@@ -5,10 +5,15 @@
 #-------------------------------------------------------------------------------
   
 library(data.table)
+library(lubridate)
+
+
 df <- fread("I:/306 HCE Project/R_analysis/2024analysis/20210701_to_20230212/measure_df_July2021_Feb2023_WL.csv")
-df2 <- fread("I:/306 HCE Project/R_analysis/2024analysis/20230212_to_20230219/Statistics_Load_CycloneGabrielle_Feb2023_WL.csv")
+df2 <- fread("I:/306 HCE Project/R_analysis/2024analysis/20230212_to_20230219/measure_df_CycloneGabrielle_Feb2023_WL.csv")
 df3 <- fread("I:/306 HCE Project/R_analysis/2024analysis/20230219_to_20240630/measure_df_Feb2023_June2024_WL.csv")
 df4 <- fread("I:/306 HCE Project/R_analysis/2024analysis/20230219_to_20240630/measure_df_Feb2023_June2024_TURB.csv")
+
+df2$SampleTaken <- as.POSIXct(df2$SampleTaken, format = "%Y-%m-%d %H:%M:%S", na.rm = TRUE)
 
 df_combined <- rbindlist(list(df, df2, df3, df4), use.names = TRUE, fill = TRUE)
 
