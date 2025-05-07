@@ -809,6 +809,8 @@ for (i in seq_len(nrow(measure_df))) {
 measure_df2 <- measure_df[,c(1,2,3,4,5,9,10)]
 # Print the result
 head(measure_df2)
+#Format date time
+format(df2$SampleTaken, "%Y-%m-%d %H:%M:%S")
 # Change name accordingly
 write.csv(measure_df2, file = "I:/306 HCE Project/R_analysis/SedimentLoads/Outputs/measure_df_Feb2023_July2024_TURB.csv", row.names = FALSE)
 

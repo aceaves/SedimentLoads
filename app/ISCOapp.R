@@ -92,9 +92,7 @@ ui <- fluidPage(
   
   titlePanel(HTML('<div style="color: #6B4504">HBRC ISCO Programme - Suspended Sediment Concentration, Flow & Load Plots</div>')),
   
-  
-  
-  sidebarLayout(
+    sidebarLayout(
     sidebarPanel(
       selectInput("SiteName", "Site Name:", c(sitelist)),
       selectInput("df", "Measurement:",

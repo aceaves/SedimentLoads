@@ -28,8 +28,8 @@ Sys.setlocale("LC_TIME", "C")
 
 #Set file path to ISCO Hilltop file 
 dfile <- HilltopData("I:/306 HCE Project/Hilltop/ISCO_Processing.dsn")
-#dfile <- HilltopData("N:/HilltopData/EMAR/EMARFull.dsn")
-dfile <- HilltopData("I:/320_Surface Water Hydrology/SOE/2021-2024_Report/Tech_Report/Hilltop_Workfiles/HilltopStitchedModelData/GabrielleModelled_Ashton.hts")
+dfile <- HilltopData("N:/HilltopData/EMAR/EMARFull.dsn")
+#dfile <- HilltopData("I:/320_Surface Water Hydrology/SOE/2021-2024_Report/Tech_Report/Hilltop_Workfiles/HilltopStitchedModelData/GabrielleModelled_Ashton.hts")
 
 # Get site list or measurement list for respective sites 
 sitelist <- SiteList(dfile, "")
@@ -47,7 +47,7 @@ Hilltop::SiteList(dfile)
 #                      sitelist == "Tutaekuri River at Puketapu HBRC Site"]
 
 # Subset the list for analysis during Cyclone Gabby with Todd's modelled data:
-sitelist <- sitelist[sitelist == "Tutaekuri River at Puketapu HBRC Site"]
+sitelist <- sitelist[sitelist == "Waiau River at Ardkeen"]
 
 # Date range. 
 date1 <- "12-Feb-2023 00:00:00"
@@ -55,7 +55,7 @@ date2 <- "19-Feb-2023 00:00:00"
 
 #Measurements/data that we want to pull from the Hilltop file
 # Modify "Flow" to "Flow - CGModel" to pull modelled Gabrielle flows.
-measurement <- c(	'Suspended Solids [Suspended Solids]','Suspended Sediment Concentration', "Flow - CGModel") # Adjust for CG Model. Change to "Flow - CGModel" otherwise just "Flow".
+measurement <- c(	'Suspended Solids [Suspended Solids]','Suspended Sediment Concentration', "Flow") # Adjust for CG Model. Change to "Flow - CGModel" otherwise just "Flow".
 
 # Read regression file into a data frame
 regression_output <- "I:/306 HCE Project/R_analysis/SedimentLoads/Outputs/Regressions/regression_output_excel.xlsx"
@@ -125,7 +125,7 @@ melt$SampleTaken <-  lubridate::floor_date(melt$SampleTaken, "15 minutes")
 melt$SampleTaken <- as.POSIXct(melt$SampleTaken, format = "%Y-%m-%d %H:%M:%S", na.rm = TRUE)
 
 
-Flow <- filter(melt, Measurement == "Flow - CGModel") # Another adjustment for CG Model. Change to "Flow - CGModel" otherwise just "Flow"
+Flow <- filter(melt, Measurement == "Flow") # Another adjustment for CG Model. Change to "Flow - CGModel" otherwise just "Flow"
 Flow$Flow <- as.numeric(Flow$Flow, na.rm = TRUE)
 # Remove duplicate timesteps
 Flow <- Flow %>% group_by(SampleTaken, SiteName, Measurement) %>%
@@ -173,7 +173,7 @@ merged1 <- filter(merged, Measurement2 == 'SSC')
 melt$SampleTaken <-  lubridate::floor_date(melt$SampleTaken, "15 minutes")
 melt$SampleTaken <- as.POSIXct(melt$SampleTaken, format = "%Y-%m-%d %H:%M:%S", na.rm = TRUE)
 
-Flow <- filter(melt, Measurement == "Flow - CGModel") # Another adjustment for CG Model. Change to "Flow - CGModel" otherwise just "Flow"
+Flow <- filter(melt, Measurement == "Flow") # Another adjustment for CG Model. Change to "Flow - CGModel" otherwise just "Flow"
 Flow$Flow <- as.numeric(Flow$Flow, na.rm = TRUE)
 # Remove duplicate timesteps
 Flow <- Flow %>% group_by(SampleTaken, SiteName, Measurement) %>%
@@ -330,7 +330,7 @@ sitelist <- as.character(sitelist)
 print(Statistics_Load)
 
 ##Load table output ******Make sure the dates line up with data inputs
-write.csv(Statistics_Load, file = "Statistics_Load_July2021_Feb203_WL.csv", row.names = FALSE)
+write.csv(Statistics_Load, file = "Statistics_Load_July2021_Feb203_WL_Waiau.csv", row.names = FALSE)
 
 #####  Plot Exports  ###########################################################
 
@@ -464,6 +464,8 @@ for (i in seq_len(nrow(measure_df))) {
 measure_df2 <- measure_df[,c(1,2,3,4,8,9)]
 # Print the result
 head(measure_df2)
+#Format date time
+format(measure_df2$SampleTaken, "%Y-%m-%d %H:%M:%S")
 
 #measure_df3 <- filter(measure_df2, SiteName != "Aropaoanui River at Aropaoanui" 
 #                   & SiteName != "Karamu Stream at Floodgates" 
@@ -471,6 +473,6 @@ head(measure_df2)
 #                   & SiteName != "Mangaone River at Rissington"
 #                   & SiteName != "Wairoa River at Marumaru"
 #                   & SiteName != "Wharerangi Stream at Codds")
-write.csv(measure_df2, file = "I:/306 HCE Project/R_analysis/SedimentLoads/Outputs/measure_df_July2021_Feb2023_WL.csv", row.names = FALSE)
+write.csv(measure_df2, file = "I:/306 HCE Project/R_analysis/SedimentLoads/Outputs/measure_df_July2021_Feb2023_WL_Waiau.csv", row.names = FALSE)
 
 ################################################################################
