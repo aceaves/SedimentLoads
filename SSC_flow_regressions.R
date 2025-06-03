@@ -26,7 +26,7 @@ library(ggtext)
 
 #Set file path to ISCO Hilltop file 
 
-dfile <- HilltopData("I:/306 HCE Project/Hilltop/ISCO_Processing.dsn")
+dfile <- HilltopData("I:/Land/EROSION_MONITORING/ISCO_Programme/Hilltop/ISCO_Processing.dsn")
 #dfile <- HilltopData("N:/HilltopData/EMAR/EMARFull.dsn")
 
 # Get measurement list for respective sites 
@@ -34,11 +34,11 @@ sitelist <- SiteList(dfile, "")
 Hilltop::SiteList(dfile)
 
 # Date range. 
-date1 <- "01-June-2021 00:00:00"
-date2 <- "12-February-2023 00:00:00"
+date1 <- "30-June-2016 00:00:00"
+date2 <- "01-June-2025 00:00:00"
 
-#Measurements/data that we want to pull from the Hilltop file 
-measurement <- c(	'Suspended Solids [Suspended Solids]','Suspended Sediment Concentration', "Flow")
+#Measurements/data that we want to pull from the Hilltop file. Add SS if needed here. 
+measurement <- c(	'Suspended Sediment Concentration', "Flow")
 
 #Loop 1 through sites to get data ----------------------------------------------
 name <- data.frame(sitelist)
@@ -64,7 +64,7 @@ for (j in 1:site_no) {
   })
   next  # Skip to the next iteration outside the tryCatch block
 }
-# End loop ---------------------------------------------------------------------
+# End loop 1 ---------------------------------------------------------------------
 
 # Rename column names for the new dataframe called 'melt'
 new_colnames <- c("SampleTaken", "Flow", "SiteName", "Measurement")
@@ -85,27 +85,36 @@ Flow$Flow <- as.numeric(Flow$Flow)
 Flow <- Flow %>% group_by(SampleTaken, SiteName, Measurement) %>%
   summarise(Flow = mean(Flow)) 
 
-SSC <- filter(melt, Measurement %in% c("Suspended Sediment Concentration", "Suspended Solids"))
-SSC <- as.data.frame(sapply(SSC, gsub, pattern = "<|>", replacement = ""))
-SSC$SampleTaken <- as.POSIXct(SSC$SampleTaken, format = "%Y-%m-%d %H:%M:%S")
+SSC <- filter(melt, Measurement == "Suspended Sediment Concentration")
+
+#SSC <- as.data.frame(sapply(SSC, gsub, pattern = "<|>", replacement = ""))
+SSC$SampleTaken <- as.POSIXct(SSC$SampleTaken, format = "%d/%m/%Y %H:%M:%S")
 SSC$SampleTaken <- lubridate::round_date(SSC$SampleTaken, "15 minutes") 
-SSC$SampleTaken <-as.character(SSC$SampleTaken) 
-Flow$SampleTaken <-as.character(Flow$SampleTaken) 
+#SSC$SampleTaken <-as.character(SSC$SampleTaken) 
+#Flow$SampleTaken <-as.character(Flow$SampleTaken) 
 
+# Join the datasets together
 merged <- merge(Flow, SSC, by = "SampleTaken" )
-merged <- merged[,c(1,2,3,4,5,7)]
 
-colnames(merged) <- c('SampleTaken','Site','Measurement', 'Flow', 'Conc', 'Measurement2')
-merged$SampleTaken <- as.POSIXct(merged$SampleTaken, format = "%Y-%m-%d %H:%M:%S")
-merged$Conc <- as.numeric(merged$Conc)
+# Merge the flow and concentration datasets
+merged_clean <- merged[merged$SiteName.x == merged$SiteName.y, ]
+merged_clean$SiteName <- merged_clean$SiteName.x
+merged_clean$Flow <- merged_clean$Flow.x
+merged_clean$SSC <- merged_clean$Flow.y  # Assuming Flow.y actually contains SSC values
 
-merged$Measurement2[merged$Measurement2 == 'Suspended Sediment Concentration'] <- "SSC"
-merged$Measurement2[merged$Measurement2 == 'Suspended Solids'] <- "SS"
-merged1 <- filter(merged, SampleTaken > "2018-06-30" & Measurement2 == 'SSC')
+# Drop the old columns and clean up
+merged_clean <- merged_clean[, !names(merged_clean) %in% c("SiteName.x", "SiteName.y", "Flow.x", "Flow.y")]
+merged_clean <- merged_clean[, c("SampleTaken", "SiteName", setdiff(names(merged_clean), c("SampleTaken", "SiteName")))]
+merged_clean$SampleTaken <- as.POSIXct(SSC$SampleTaken, format = "%d/%m/%Y %H:%M:%S")
 
-subset_merged1 <- select(merged1, SampleTaken, Site, Measurement, Flow)
+head(merged_clean)
 
-head(subset_merged1, 10)
+merged_clean <- merged_clean[,c(1,2,5,6)]
+head(merged_clean, 20)
+
+write.csv(merged_clean, file = "I:/Land/EROSION_MONITORING/ISCO_Programme/R_analysis/SedimentLoads/Outputs/Regressions/merged_clean_WL.csv", row.names = FALSE)
+
+####    Export to Manager. Rest of script unchecked. ###########################
 
 ####    Output    ##############################################################
 

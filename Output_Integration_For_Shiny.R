@@ -9,18 +9,18 @@ library(lubridate)
 library(dplyr)
 
 
-df <- fread("I:/306 HCE Project/R_analysis/2024analysis/20210701_to_20230212/measure_df_July2021_Feb2023_WL.csv")
-df2 <- fread("I:/306 HCE Project/R_analysis/2024analysis/20230212_to_20230219/measure_df_CycloneGabrielle_Feb2023_WL.csv")
-df3 <- fread("I:/306 HCE Project/R_analysis/2024analysis/20230219_to_20240630/measure_df_Feb2023_June2024_WL.csv")
-df4 <- fread("I:/306 HCE Project/R_analysis/2024analysis/20230219_to_20240630/measure_df_Feb2023_June2024_TURB.csv")
+df <- fread("I:/Land/EROSION_MONITORING/ISCO_Programme/R_analysis/2024analysis/20210701_to_20230212/measure_df_July2021_Feb2023_WL.csv")
+df2 <- fread("I:/Land/EROSION_MONITORING/ISCO_Programme/R_analysis/2024analysis/20230212_to_20230219/measure_df_CycloneGabrielle_Feb2023_WL.csv")
+df3 <- fread("I:/Land/EROSION_MONITORING/ISCO_Programme/R_analysis/2024analysis/20230219_to_20240630/measure_df_Feb2023_June2024_WL.csv")
+df4 <- fread("I:/Land/EROSION_MONITORING/ISCO_Programme/R_analysis/2024analysis/20230219_to_20240630/measure_df_Feb2023_June2024_TURB.csv")
 
-# Fix timestamps
-df$SampleTaken <- as.POSIXct(df$SampleTaken, format = "%d/%m/%Y %H:%M", na.rm = TRUE)
-df2$SampleTaken <- as.POSIXct(df2$SampleTaken, format = "%d/%m/%Y %H:%M", na.rm = TRUE)
-df3$SampleTaken <- as.POSIXct(df3$SampleTaken)  # let R auto-detect
-df4$SampleTaken <- as.POSIXct(df4$SampleTaken)
-format(df$SampleTaken, "%Y-%m-%d %H:%M:%S")
-format(df2$SampleTaken, "%Y-%m-%d %H:%M:%S")
+# Fix timestamps. If NAs are produced, fix in excel by converting to dd/mm/yyy hh:mm:ss format.
+df$SampleTaken <- as.POSIXct(df$SampleTaken, format = "%d/%m/%Y %H:%M:%S", na.rm = TRUE)
+df2$SampleTaken <- as.POSIXct(df2$SampleTaken, format = "%d/%m/%Y %H:%M:%S", na.rm = TRUE)
+df3$SampleTaken <- as.POSIXct(df3$SampleTaken, format = "%d/%m/%Y %H:%M:%S", na.rm = TRUE)
+df4$SampleTaken <- as.POSIXct(df4$SampleTaken, format = "%d/%m/%Y %H:%M:%S", na.rm = TRUE)
+#format(df$SampleTaken, "%Y-%m-%d %H:%M:%S")
+#format(df3$SampleTaken, "%Y-%m-%d %H:%M:%S")
 
 df_combined <- rbindlist(list(df, df2, df3, df4), use.names = TRUE, fill = TRUE)
 
@@ -57,7 +57,7 @@ df_hourly <- df_hourly %>%
   rename(SampleTaken = SampleHour)
 
 #Output
-write.csv(df_hourly, file = "I:/306 HCE Project/R_analysis/SedimentLoads/Outputs/df_ISCO_Hourly.csv", row.names = FALSE)
+write.csv(df_hourly, file = "I:/Land/EROSION_MONITORING/ISCO_Programme/R_analysis/SedimentLoads/Outputs/df_ISCO_Hourly.csv", row.names = FALSE)
 
 # For shiny app:
-write.csv(df_hourly, "I:/306 HCE Project/R_analysis/SedimentLoads/SedimentLoads/app/measure.csv", row.names = FALSE)
+write.csv(df_hourly, "I:/Land/EROSION_MONITORING/ISCO_Programme/R_analysis/SedimentLoads/SedimentLoads/app/measure.csv", row.names = FALSE)
