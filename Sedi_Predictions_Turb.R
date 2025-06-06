@@ -22,23 +22,24 @@ library(HBRCDataAccess)
 library(purrr)
 
 #set file path to ISCO Hilltop file 
-dfile <- HilltopData("I:/306 HCE Project/Hilltop/ISCO_Processing.dsn")
+dfile <- HilltopData("I:/Land/EROSION_MONITORING/ISCO_Programme/Hilltop/ISCO_Processing.dsn")
 
 # Get site list or measurement list for respective sites 
 sitelist <- SiteList(dfile, "")
 Hilltop::SiteList(dfile)
 
 #ISCO sites subset
-sitelist <- sitelist[sitelist == "Karamu Stream at Floodgates" | 
-                       sitelist == "Tukituki River at Red Bridge"]
+#sitelist <- sitelist[sitelist == "Karamu Stream at Floodgates" | 
+#                       sitelist == "Tukituki River at Red Bridge"]
+sitelist <- sitelist[sitelist == "Tukituki River at Red Bridge"]
 
 ################################################################################
 #Measurements/data that we want to pull from the Hilltop file 
 measurement <- c(	'Suspended Solids [Suspended Solids]','Suspended Sediment Concentration', 'Turbidity (FNU)', "Flow")  
 
 # Date range. 
-date1 <- "19-Feb-2023 00:00:00"
-date2 <- "01-Jul-2024 00:00:00"
+date1 <- "01-Jul-2021 00:00:00"
+date2 <- "12-Feb-2023 00:00:00"
 
 ###############################################################################
 
@@ -485,7 +486,7 @@ ggplotly(p)
 ############ Update regression table with results from above ###################
 
 # Read regression file into a data frame
-regression_output <- "I:/306 HCE Project/R_analysis/SedimentLoads/Outputs/Regressions/regression_output_turb.xlsx"
+regression_output <- "I:/Land/EROSION_MONITORING/ISCO_Programme/R_analysis/SedimentLoads/Outputs/Regressions/regression_output_turb.xlsx"
 regression <- read.xlsx(regression_output)
 # Print the data
 print(regression)
@@ -526,6 +527,7 @@ FlowFNU_bind$FNU_Min <- sapply(FlowFNU_bind$FNU_Min, function(x) {
 })
 # Remove rows where FNU_Min is NaN or 0
 FlowFNU_bind <- FlowFNU_bind[!is.na(FlowFNU_bind$FNU_Min) & FlowFNU_bind$FNU_Min != 0, ]
+
 
 # View the merged dataset
 head(FlowFNU_bind)
@@ -663,7 +665,7 @@ for (i in sitelist) {
 ################################################################################
 
 #Set working directory for outputs and customise as needed (date etc)
-setwd('I:/306 HCE Project/R_analysis/SedimentLoads/Outputs')
+setwd('I:/Land/EROSION_MONITORING/ISCO_Programme/R_analysis/SedimentLoads/Outputs')
 
 # Create measure data frame
 # If measure is a list of data frames, bind them into a single data frame
@@ -677,7 +679,7 @@ sitelist <- as.character(sitelist)
 print(Statistics_Load)
 
 ##Load table output ******Make sure the dates line up with data inputs
-write.csv(Statistics_Load, file = "Statistics_Load_Feb2023_June2024_TURB.csv", row.names = FALSE)
+write.csv(Statistics_Load, file = "Statistics_Load_July2021_Feb2023_TURB.csv", row.names = FALSE)
 
 ######## Figure outputs ########################################################
 
@@ -812,7 +814,7 @@ head(measure_df2)
 #Format date time
 format(df2$SampleTaken, "%Y-%m-%d %H:%M:%S")
 # Change name accordingly
-write.csv(measure_df2, file = "I:/306 HCE Project/R_analysis/SedimentLoads/Outputs/measure_df_Feb2023_July2024_TURB.csv", row.names = FALSE)
+write.csv(measure_df2, file = "I:/Land/EROSION_MONITORING/ISCO_Programme/R_analysis/SedimentLoads/Outputs/measure_df_July2021_June2024_TURB.csv", row.names = FALSE)
 
 ################################################################################
 ################################################################################

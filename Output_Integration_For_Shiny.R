@@ -12,7 +12,7 @@ library(dplyr)
 df <- fread("I:/Land/EROSION_MONITORING/ISCO_Programme/R_analysis/2024analysis/20210701_to_20230212/measure_df_July2021_Feb2023_WL.csv")
 df2 <- fread("I:/Land/EROSION_MONITORING/ISCO_Programme/R_analysis/2024analysis/20230212_to_20230219/measure_df_CycloneGabrielle_Feb2023_WL.csv")
 df3 <- fread("I:/Land/EROSION_MONITORING/ISCO_Programme/R_analysis/2024analysis/20230219_to_20240630/measure_df_Feb2023_June2024_WL.csv")
-df4 <- fread("I:/Land/EROSION_MONITORING/ISCO_Programme/R_analysis/2024analysis/20230219_to_20240630/measure_df_Feb2023_June2024_TURB.csv")
+df4 <- fread("I:/Land/EROSION_MONITORING/ISCO_Programme/R_analysis/2024analysis/20210701_to_20240630_TukiTurb/measure_df_July2021_June2024_TURB.csv")
 
 # Fix timestamps. If NAs are produced, fix in excel by converting to dd/mm/yyy hh:mm:ss format.
 df$SampleTaken <- as.POSIXct(df$SampleTaken, format = "%d/%m/%Y %H:%M:%S", na.rm = TRUE)
@@ -36,7 +36,7 @@ df_combined[, Load := fifelse(is.na(Load), 0, Load)]
 df_combined[, AccumLoad := cumsum(Load), by = SiteName]
 
 # Convert SampleTaken to hourly timestamps
-df_combined[, SampleHour := as.POSIXct(SampleTaken, tz = "UTC")] # Ensure it's datetime
+df_combined[, SampleHour := as.POSIXct(SampleTaken)] # Ensure it's datetime
 df_combined[, SampleHour := floor_date(SampleHour, unit = "hour")] # Round to nearest hour
 
 # Step 1: Aggregate by SiteName and SampleHour

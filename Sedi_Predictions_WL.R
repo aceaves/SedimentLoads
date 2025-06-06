@@ -27,7 +27,7 @@ Sys.setlocale("LC_TIME", "C")
 ############ Data inputs  ################
 
 #Set file path to ISCO Hilltop file 
-dfile <- HilltopData("I:/339 Land R&I/EROSION_MONITORING/ISCO_Programme/Hilltop/ISCO_Processing.dsn")
+dfile <- HilltopData("I:/Land/EROSION_MONITORING/ISCO_Programme/Hilltop/ISCO_Processing.dsn")
 dfile <- HilltopData("N:/HilltopData/EMAR/EMARFull.dsn")
 #dfile <- HilltopData("I:/320_Surface Water Hydrology/SOE/2021-2024_Report/Tech_Report/Hilltop_Workfiles/HilltopStitchedModelData/GabrielleModelled_Ashton.hts")
 
@@ -36,7 +36,8 @@ sitelist <- SiteList(dfile, "")
 Hilltop::SiteList(dfile)
 
 # Subset the list for analysis after Cyclone Gabby as many sites have no data after.
-sitelist <- sitelist[sitelist == "Waikatuku Strm off Harrison Rd"]
+sitelist <- sitelist[sitelist == "Waikatuku Strm off Harrison Rd" | 
+                                    sitelist == "Waimaunu Stream at Duncans"]
 #sitelist <- sitelist[sitelist == "Ngaruroro River at Fernhill"] 
 #sitelist <- sitelist[sitelist == "Karamu Stream at Floodgates" | 
 #                       sitelist == "Tukituki River at Red Bridge"]
@@ -50,14 +51,14 @@ sitelist <- sitelist[sitelist == "Waikatuku Strm off Harrison Rd"]
 
 # Date range. 
 date1 <- "19-Feb-2023 00:00:00"
-date2 <- "30-Jun-2024 00:00:00"
+date2 <- "01-Jul-2024 00:00:00"
 
 #Measurements/data that we want to pull from the Hilltop file
 # Modify "Flow" to "Flow - CGModel" to pull modelled Gabrielle flows.
 measurement <- c(	'Suspended Solids [Suspended Solids]','Suspended Sediment Concentration', "Flow") # Adjust for CG Model. Change to "Flow - CGModel" otherwise just "Flow".
 
 # Read regression file into a data frame
-regression_output <- "I:/339 Land R&I/EROSION_MONITORING/ISCO_Programme/R_analysis/SedimentLoads/Outputs/Regressions/regression_output_excel.xlsx"
+regression_output <- "I:/Land/EROSION_MONITORING/ISCO_Programme/R_analysis/SedimentLoads/Outputs/Regressions/regression_output_excel.xlsx"
 regression <- read.xlsx(regression_output)
 # Print the data
 print(regression)
@@ -315,7 +316,7 @@ for (i in sitelist) {
 ################################################################################
 
 #Set working directory for outputs and customise as needed (date etc)
-setwd('I:/339 Land R&I/EROSION_MONITORING/ISCO_Programme/R_analysis/SedimentLoads/Outputs')
+setwd('I:/Land/EROSION_MONITORING/ISCO_Programme/R_analysis/SedimentLoads/Outputs')
 
 # Create measure data frame
 # If measure is a list of data frames, bind them into a single data frame
@@ -329,7 +330,7 @@ sitelist <- as.character(sitelist)
 print(Statistics_Load)
 
 ##Load table output ******Make sure the dates line up with data inputs
-write.csv(Statistics_Load, file = "Statistics_Load_July2021_Feb2023_WL.csv", row.names = FALSE)
+write.csv(Statistics_Load, file = "Statistics_Load_Feb2023_July2024_WL.csv", row.names = FALSE)
 
 #####  Plot Exports  ###########################################################
 
@@ -472,6 +473,6 @@ format(measure_df2$SampleTaken, "%Y-%m-%d %H:%M:%S")
 #                   & SiteName != "Mangaone River at Rissington"
 #                   & SiteName != "Wairoa River at Marumaru"
 #                   & SiteName != "Wharerangi Stream at Codds")
-write.csv(measure_df2, file = "I:/339 Land R&I/EROSION_MONITORING/ISCO_Programme/R_analysis/SedimentLoads/Outputs/measure_df_Feb2023_2024_WL.csv", row.names = FALSE)
+write.csv(measure_df2, file = "I:/Land/EROSION_MONITORING/ISCO_Programme/R_analysis/SedimentLoads/Outputs/measure_df_Feb2023_June2024_WL.csv", row.names = FALSE)
 
 ################################################################################
