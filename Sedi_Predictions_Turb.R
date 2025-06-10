@@ -511,6 +511,11 @@ Flow <- Flow[!( Flow[, 3] < 0), ]
 
 ###############################################################################
 
+# Replace FNU_Min NAs using the correct regression: FNU_Min = 0.0037 * Flow^0.9366
+merged_wide$FNU_Min[is.na(merged_wide$FNU_Min)] <- 
+  0.0037 * (merged_wide$Flow[is.na(merged_wide$FNU_Min)])^0.9366
+sum(is.na(merged_wide$FNU_Min))  # should now be 0 if all NAs had Flow values
+
 # Subset merged_wide
 merged_wide_sub <- merged_wide[,c(1,2,4)]
 # Rename column names for the new dataframe 
@@ -525,6 +530,10 @@ FlowFNU_bind$FNU_Min <- sapply(FlowFNU_bind$FNU_Min, function(x) {
     return(NA)  # Or any default value
   }
 })
+
+# Sum zero values:
+sum(FlowFNU_bind$FNU_Min == 0, na.rm = TRUE)
+
 # Remove rows where FNU_Min is NaN or 0
 FlowFNU_bind <- FlowFNU_bind[!is.na(FlowFNU_bind$FNU_Min) & FlowFNU_bind$FNU_Min != 0, ]
 
