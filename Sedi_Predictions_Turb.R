@@ -167,7 +167,7 @@ Flow <- Flow[!( Flow[, 3] < 0), ]
 
 ###############################################################################
 
-SSC <- filter(melt, Measurement %in% c("Suspended Sediment Concentration", "Suspended Solids", "FNU_RollingMin"))
+SSC <- filter(melt, Measurement %in% c("Suspended Sediment Concentration", "FNU_RollingMin"))
 SSC <- as.data.frame(sapply(SSC, gsub, pattern = "<|>", replacement = ""))
 SSC$SampleTaken <- as.POSIXct(SSC$SampleTaken, format = "%Y-%m-%d %H:%M:%S", na.rm = TRUE)
 SSC$SampleTaken <- lubridate::round_date(SSC$SampleTaken, "15 minutes") 
@@ -187,7 +187,6 @@ Flow$SampleTaken <- as.POSIXct(Flow$SampleTaken , format = "%Y-%m-%d %H:%M:%S")
 merged <- merged %>%
   mutate(Measurement2 = case_when(
     Measurement2 == 'Suspended Sediment Concentration' ~ 'SSC',
-    Measurement2 == 'Suspended Solids' ~ 'SS',
     Measurement2 == 'FNU_RollingMin' ~ 'FNU_Min',
     TRUE ~ Measurement2
   ))
@@ -199,8 +198,6 @@ merged_wide <- merged %>%
 # Filter out rows where the list columns contain 'Null'
 merged_wide2 <- merged_wide %>%
   filter(!sapply(SSC, function(x) all(x == 'Null')))
-# Drop SS as empty
-merged_wide2 <- merged_wide2[,c(1,2,3,4,6)]
 
 # Check for multi value rows - sedi gaugings etc.
 #multi_value_rows <- sapply(merged_wide2$FNU_Min, length) > 1
@@ -511,17 +508,33 @@ Flow <- Flow[!( Flow[, 3] < 0), ]
 
 ###############################################################################
 
-# Replace FNU_Min NAs using the correct regression: FNU_Min = 0.0037 * Flow^0.9366
+# Replace FNU_Min NAs using the correct regression: 
+# FNU_Min = 0.0037 * Flow^0.9366 (for tuki) 
 merged_wide$FNU_Min[is.na(merged_wide$FNU_Min)] <- 
   0.0037 * (merged_wide$Flow[is.na(merged_wide$FNU_Min)])^0.9366
+# fNU_Min for Karamu:
+#merged_wide$FNU_Min[is.na(merged_wide$FNU_Min)] <-
+#  1e-07 * (merged_wide$Flow[is.na(merged_wide$FNU_Min)])^2 -
+#  0.001 * merged_wide$Flow[is.na(merged_wide$FNU_Min)] +
+#  41.869
+
 sum(is.na(merged_wide$FNU_Min))  # should now be 0 if all NAs had Flow values
 
 # Subset merged_wide
 merged_wide_sub <- merged_wide[,c(1,2,4)]
 # Rename column names for the new dataframe 
 colnames(merged_wide_sub) <- c("SampleTaken","SiteName","FNU_Min")
-# Merge datasets
-FlowFNU_bind <- merge(Flow, merged_wide_sub, by = c("SampleTaken", "SiteName"))
+# Merge datasets with left join:
+FlowFNU_bind <- merge(Flow, merged_wide_sub, by = c("SampleTaken", "SiteName"), all.x = TRUE)
+# Flatten list
+FlowFNU_bind$FNU_Min <- sapply(FlowFNU_bind$FNU_Min, function(x) as.numeric(x[1]))
+# Convert Nulls
+FlowFNU_bind$FNU_Min[FlowFNU_bind$FNU_Min == "NULL"] <- NA
+FlowFNU_bind$FNU_Min <- as.numeric(FlowFNU_bind$FNU_Min)
+# Re apply regression to missisng vlaues:
+FlowFNU_bind$FNU_Min[is.na(FlowFNU_bind$FNU_Min)] <-
+  0.0037 * (FlowFNU_bind$Flow[is.na(FlowFNU_bind$FNU_Min)])^0.9366
+
 # Average FNU_Min for each entry
 FlowFNU_bind$FNU_Min <- sapply(FlowFNU_bind$FNU_Min, function(x) {
   if (length(x) > 0) {
@@ -536,7 +549,6 @@ sum(FlowFNU_bind$FNU_Min == 0, na.rm = TRUE)
 
 # Remove rows where FNU_Min is NaN or 0
 FlowFNU_bind <- FlowFNU_bind[!is.na(FlowFNU_bind$FNU_Min) & FlowFNU_bind$FNU_Min != 0, ]
-
 
 # View the merged dataset
 head(FlowFNU_bind)
@@ -696,6 +708,8 @@ write.csv(Statistics_Load, file = "Statistics_Load_July2021_Feb2023_TURB.csv", r
 for (i in sitelist) { 
   
   measure1 <- filter(measure_df, SiteName == i)
+  # Use if spikey:
+  #measure1$PredConc_smoothed <- rollmean(measure1$PredConc, k = 5, fill = NA, align = "center")
   merged2 <- filter(merged_wide_sub, SiteName == i)
   merged3 <- filter(merged_wide2, Site == i)
   # Disable scientific notation
@@ -773,7 +787,8 @@ for (i in sitelist) {
     geom_path(aes(x = SampleTaken, y = (Flow / 1000) * flow_scaling_factor), colour = '#00364a', size = 0.4) + 
     geom_line(aes(x = SampleTaken, y = PredConc), colour = '#92a134') +
     geom_point(data = merged3_offset, aes(x = SampleTaken, y = SSC, color = Measurement2),colour = '#eebd1c', size = 2) +
-    scale_x_datetime(date_labels = "%b %Y", date_breaks = "3 months", name = "Date") + 
+    scale_x_datetime(date_labels = "%b %Y", date_breaks = "3 months", name = "Date") + # use for normal graphs
+    #scale_x_datetime(date_labels = "%d %b %Y", date_breaks = "1 days", name = "Date") + # use for event graphs
     # Primary y-axis for SSC and secondary y-axis for Flow with adjusted scaling
     scale_y_continuous(
       name = "SSC (mg/l)",  # Primary axis label for SSC
@@ -821,9 +836,13 @@ measure_df2 <- measure_df[,c(1,2,3,4,5,9,10)]
 # Print the result
 head(measure_df2)
 #Format date time
-format(df2$SampleTaken, "%Y-%m-%d %H:%M:%S")
+format(measure_df2$SampleTaken, "%Y-%m-%d %H:%M:%S")
 # Change name accordingly
-write.csv(measure_df2, file = "I:/Land/EROSION_MONITORING/ISCO_Programme/R_analysis/SedimentLoads/Outputs/measure_df_July2021_June2024_TURB.csv", row.names = FALSE)
+write.csv(measure_df2, file = "I:/Land/EROSION_MONITORING/ISCO_Programme/R_analysis/SedimentLoads/Outputs/measure_df_Feb2023_June2024_TURB.csv", row.names = FALSE)
 
 ################################################################################
 ################################################################################
+
+rm(list = ls())  # Clear all objects
+gc()             # Run garbage collection
+
